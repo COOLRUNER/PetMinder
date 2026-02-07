@@ -1,0 +1,580 @@
+@page "/sitterdetails/{UserId:long}"
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@using PetMinder.Client.Components
+@inject SitterSearchService SitterSearchService
+@inject BookingService BookingService
+@inject PetService PetService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject RecommendationService RecommendationService
+@inject AdminService AdminService
+@inject IConfiguration Configuration
+
+<PageTitle>Sitter Profile</PageTitle>
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-4xl mx-auto">
+
+        <div class="flex justify-between items-center mb-6">
+            <button @onclick="GoBack" class="flex items-center text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors">
+                <Heroicon Name="@HeroiconName.ArrowLeft" Type="@HeroiconType.Outline" class="mr-2 h-4 w-4" />
+                Back to Search
+            </button>
+
+            <button @onclick="OpenReportModal" class="flex items-center text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors">
+                <Heroicon Name="@HeroiconName.Flag" Type="@HeroiconType.Mini" class="mr-1 h-3 w-3" />
+                Report Sitter
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-4 text-sm font-medium">Loading sitter details...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center">
+                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+                    <Heroicon Name="@HeroiconName.ExclamationTriangle" Type="@HeroiconType.Outline" class="h-6 w-6" />
+                </div>
+                <h3 class="text-lg font-bold text-rose-900">Error Loading Profile</h3>
+                <p class="mt-2 text-rose-700">@errorMessage</p>
+                <button @onclick="GoBack" class="mt-6 rounded-xl bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200 transition-colors">
+                    Go Back
+                </button>
+            </div>
+        }
+        else if (sitterDetails == null)
+        {
+            <div class="rounded-3xl border border-sky-200 bg-sky-50 p-8 text-center">
+                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-500">
+                    <Heroicon Name="@HeroiconName.InformationCircle" Type="@HeroiconType.Outline" class="h-6 w-6" />
+                </div>
+                <h3 class="text-lg font-bold text-sky-900">Sitter Not Found</h3>
+                <p class="mt-2 text-sky-700">The requested sitter profile could not be found.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 h-32 md:h-48"></div>
+
+                <div class="px-6 md:px-10 pb-10">
+                    <div class="relative flex flex-col md:flex-row items-start md:items-end -mt-12 mb-6 gap-6">
+                        <div class="h-24 w-24 md:h-32 md:w-32 rounded-full border-4 border-white bg-slate-100 shadow-md overflow-hidden flex-shrink-0 flex items-center justify-center">
+                            @if (!string.IsNullOrEmpty(sitterDetails.ProfilePhotoUrl))
+                            {
+                                <img src="@GetPhotoUrl(sitterDetails.ProfilePhotoUrl)" alt="@sitterDetails.FirstName" class="h-full w-full object-cover" />
+                            }
+                            else
+                            {
+                                <Heroicon Name="@HeroiconName.User" Type="@HeroiconType.Solid" class="h-12 w-12 text-slate-300" />
+                            }
+                        </div>
+
+                        <div class="flex-1 pt-2 md:pt-0">
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-3xl font-bold text-slate-900">@sitterDetails.FirstName @sitterDetails.LastName</h1>
+                                @if (sitterDetails.IsVerified)
+                                {
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                        <Heroicon Name="@HeroiconName.ShieldCheck" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                                        Verified Sitter
+                                    </span>
+                                }
+                            </div>
+                            <div class="mt-1 flex flex-wrap gap-4 text-sm text-slate-500">
+                                @if (sitterDetails.DistanceInKm.HasValue)
+                                {
+                                    <span class="flex items-center gap-1">
+                                        <Heroicon Name="@HeroiconName.MapPin" Type="@HeroiconType.Solid" class="h-4 w-4 text-slate-400" />
+                                        @sitterDetails.DistanceInKm.Value.ToString("F1") km away
+                                    </span>
+                                }
+                                <span class="flex items-center gap-1" title="Rating as Sitter">
+                                    <Heroicon Name="@HeroiconName.Star" Type="@HeroiconType.Solid" class="h-4 w-4 text-amber-400" />
+                                    <span class="font-bold text-slate-900">@sitterDetails.AverageSitterRating.ToString("F1")</span>
+                                    <span>(@sitterDetails.SitterReviewCount)</span>
+                                </span>
+                                <span class="flex items-center gap-1" title="Rating as Owner">
+                                    <Heroicon Name="@HeroiconName.Star" Type="@HeroiconType.Solid" class="h-4 w-4 text-sky-400" />
+                                    <span class="font-bold text-slate-900">@sitterDetails.AverageOwnerRating.ToString("F1")</span>
+                                    <span>(@sitterDetails.OwnerReviewCount)</span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <Heroicon Name="@HeroiconName.CurrencyDollar" Type="@HeroiconType.Solid" class="h-4 w-4 text-emerald-500" />
+                                    @sitterDetails.MinPoints pts/hr
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 w-full md:w-auto mt-4 md:mt-0">
+                            <button @onclick="ShowBookingRequestModal" class="flex-1 md:flex-none rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600 hover:shadow-emerald-300 transition-all transform hover:-translate-y-0.5">
+                                Book Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div class="space-y-8">
+                            @if (sitterDetails.Badges != null && sitterDetails.Badges.Any())
+                            {
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 mb-3">Badges</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach (var badge in sitterDetails.Badges)
+                                        {
+                                             <div class="flex flex-col items-center p-2 rounded-xl border border-slate-100 bg-slate-50 min-w-[70px]" title="@badge.Description">
+                                                <div class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 shadow-sm">
+                                                   <Heroicon Name="@HeroiconName.Trophy" Type="@HeroiconType.Solid" class="w-5 h-5" />
+                                                </div>
+                                                <span class="text-[0.6rem] font-bold text-slate-700 mt-1 text-center text-balance leading-tight">@badge.Name</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-3">Contact Info</h3>
+                                <ul class="space-y-2 text-sm text-slate-600">
+                                    <li class="flex items-center gap-2">
+                                        <Heroicon Name="@HeroiconName.Envelope" Type="@HeroiconType.Solid" class="h-4 w-4 text-emerald-500" />
+                                        @sitterDetails.Email
+                                    </li>
+                                    <li class="flex items-center gap-2">
+                                        <Heroicon Name="@HeroiconName.Phone" Type="@HeroiconType.Solid" class="h-4 w-4 text-emerald-500" />
+                                        @sitterDetails.Phone
+                                    </li>
+                                </ul>
+                            </div>
+
+                            @if (sitterDetails.Qualifications != null && sitterDetails.Qualifications.Any())
+                            {
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 mb-3">Qualifications</h3>
+                                    <ul class="space-y-3">
+                                        @foreach (var qual in sitterDetails.Qualifications)
+                                        {
+                                            <li class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                                <div class="font-semibold text-emerald-900 text-sm flex items-center gap-2">
+                                                    <Heroicon Name="@HeroiconName.CheckCircle" Type="@HeroiconType.Solid" class="h-4 w-4 text-emerald-600" />
+                                                    @qual.QualificationType.Name
+                                                </div>
+                                                <div class="text-xs text-emerald-700 mt-1 ml-6">@qual.QualificationType.Description</div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="space-y-8">
+                            @if (sitterDetails.Restrictions != null && sitterDetails.Restrictions.Any())
+                            {
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 mb-3">Restrictions</h3>
+                                    <ul class="space-y-2">
+                                        @foreach (var restriction in sitterDetails.Restrictions)
+                                        {
+                                            <li class="flex items-start gap-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-800">
+                                                <Heroicon Name="@HeroiconName.NoSymbol" Type="@HeroiconType.Solid" class="h-5 w-5 text-rose-500 shrink-0" />
+                                                <div>
+                                                    <strong class="font-semibold text-rose-900">@restriction.RestrictionType.Name</strong>
+                                                    <p class="mt-0.5 text-xs opacity-90">@restriction.RestrictionType.Description</p>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+
+                            @if (sitterDetails.Availabilities != null && sitterDetails.Availabilities.Any())
+                            {
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 mb-3">Current Availability</h3>
+                                    <div class="rounded-xl border border-slate-200 overflow-hidden">
+                                        @foreach (var avail in sitterDetails.Availabilities.OrderBy(a => a.StartTime).Take(5))
+                                        {
+                                            <div class="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3 last:border-0 hover:bg-slate-50 transition-colors">
+                                                <span class="text-sm font-medium text-slate-700">@avail.StartTime.ToLocalTime().ToString("MMM dd")</span>
+                                                <span class="text-xs text-slate-500">
+                                                    @avail.StartTime.ToLocalTime().ToString("t") - @avail.EndTime.ToLocalTime().ToString("t")
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                    @if (sitterDetails.Availabilities.Count > 5)
+                                    {
+                                        <p class="mt-2 text-xs text-slate-400 text-center">+ @(sitterDetails.Availabilities.Count - 5) more slots</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-10 border-t border-slate-100 pt-10 px-6 md:px-10">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-slate-900">Reviews</h3>
+                        <div class="flex flex-col items-end text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                            <span>@sitterDetails.SitterReviewCount Sitter Reviews</span>
+                            <span>@sitterDetails.OwnerReviewCount Owner Reviews</span>
+                        </div>
+                    </div>
+                    <ReviewList Reviews="@sitterDetails.RecentReviews" />
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showBookingRequestModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @onclick="HideBookingRequestModal"></div>
+
+        <div class="relative w-full max-w-lg transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-900">Book @sitterDetails?.FirstName</h3>
+                <button @onclick="HideBookingRequestModal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Solid" class="h-6 w-6" />
+                </button>
+            </div>
+
+            <EditForm Model="bookingRequestDto" OnValidSubmit="SendBookingRequest" class="p-6">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(bookingFormErrorMessage))
+                {
+                    <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        @bookingFormErrorMessage
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(bookingFormSuccessMessage))
+                {
+                    <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-medium">
+                        ✅ @bookingFormSuccessMessage
+                    </div>
+                }
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Start</label>
+                            <InputDate Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="bookingRequestDto.StartTime"
+                                       @bind-Value:after="CalculateRecommendation"
+                                       class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">End</label>
+                            <InputDate Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="bookingRequestDto.EndTime"
+                                       @bind-Value:after="CalculateRecommendation"
+                                       class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="petSelect" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Which pet?</label>
+                        @if (userPets == null)
+                        {
+                            <div class="h-10 w-full animate-pulse rounded-xl bg-slate-100"></div>
+                        }
+                        else if (!userPets.Any())
+                        {
+                            <div class="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                                You need to add a pet first. <a href="pets" class="font-bold underline">Add Pet</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <InputSelect id="petSelect"
+                                         Value="bookingRequestDto.PetId"
+                                         ValueChanged="@((long value) => OnPetSelected(value))"
+                                         ValueExpression="@(() => bookingRequestDto.PetId)"
+                                         class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+                                <option value="0">-- Select a Pet --</option>
+                                @foreach (var pet in userPets)
+                                {
+                                    <option value="@pet.PetId">@pet.Name (@pet.Breed)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => bookingRequestDto.PetId)" class="text-xs text-rose-500 mt-1" />
+                        }
+                    </div>
+
+                    <div>
+                        <label for="offeredPoints" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Offered Points</label>
+                        <InputNumber id="offeredPoints" @bind-Value="bookingRequestDto.OfferedPoints" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" />
+                        <ValidationMessage For="@(() => bookingRequestDto.OfferedPoints)" class="text-xs text-rose-500 mt-1" />
+                        @if (recommendedPoints > 0)
+                        {
+                            <button type="button" @onclick="ApplyRecommendation" class="mt-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors">
+                                <Heroicon Name="@HeroiconName.Sparkles" Type="@HeroiconType.Solid" class="h-3 w-3" />
+                                Review smart recommendation: <strong>@recommendedPoints points</strong>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end gap-3">
+                    <button type="button" @onclick="HideBookingRequestModal" disabled="@isSendingBooking" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        Cancel
+                    </button>
+                    <button type="submit" disabled="@isSendingBooking" class="rounded-xl bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                        @if (isSendingBooking)
+                        {
+                            <span class="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                            <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span>Send Request</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<ReportUser @bind-IsVisible="showReportUserModal"
+                 ReportedUserId="@UserId"
+                 ReportedUserName="@($"{sitterDetails?.FirstName} {sitterDetails?.LastName}")"
+                 Source="Profile" />
+
+@code {
+    [Parameter]
+    public long UserId { get; set; }
+
+    private SearchSitterProfileDetailsDTO? sitterDetails;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private bool showBookingRequestModal = false;
+    private CreateBookingRequestDTO bookingRequestDto = new();
+    private List<PetDTO>? userPets;
+    private string? bookingFormErrorMessage;
+    private string? bookingFormSuccessMessage;
+    private bool isSendingBooking = false;
+    private int recommendedPoints = 0;
+
+    private bool showReportUserModal = false;
+    
+    private int _policyBaseRate = 10; 
+
+    [SupplyParameterFromQuery]
+    public DateTime? SearchStartTime { get; set; }
+
+    [SupplyParameterFromQuery]
+    public DateTime? SearchEndTime { get; set; }
+
+    [SupplyParameterFromQuery]
+    public long? PetId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        sitterDetails = null;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity == null || !user.Identity.IsAuthenticated)
+        {
+            errorMessage = "You must be logged in to view sitter details.";
+            isLoading = false;
+            return;
+        }
+
+        var sitterResult = await SitterSearchService.GetSitterDetailsAsync(UserId);
+        if (sitterResult.IsSuccess)
+        {
+            sitterDetails = sitterResult.Data;
+            bookingRequestDto.SitterId = UserId;
+            bookingRequestDto.StartTime = SearchStartTime ?? DateTime.UtcNow.Date.AddHours(9);
+            bookingRequestDto.EndTime = SearchEndTime ?? DateTime.UtcNow.Date.AddHours(17);
+
+            if (PetId.HasValue)
+            {
+                bookingRequestDto.PetId = PetId.Value;
+            }
+        }
+        else
+        {
+            errorMessage = sitterResult.ErrorMessage ?? "Could not load sitter details.";
+        }
+
+        try 
+        {
+            var policies = await AdminService.GetPointPoliciesAsync();
+            var petPolicy = policies.FirstOrDefault(p => p.ServiceType == "Pet");
+            if (petPolicy != null)
+            {
+                _policyBaseRate = petPolicy.PointsPerStay;
+            }
+        }
+        catch 
+        {
+            
+        }
+        
+        await LoadUserPets();
+
+        isLoading = false;
+    }
+
+    private async Task LoadUserPets()
+    {
+        try
+        {
+            userPets = await PetService.GetPetsAsync();
+        }
+        catch (Exception ex)
+        {
+            bookingFormErrorMessage = $"Error loading your pets: {ex.Message}";
+            userPets = new List<PetDTO>();
+        }
+    }
+
+
+    private void ShowBookingRequestModal()
+    {
+        bookingFormErrorMessage = null;
+        bookingFormSuccessMessage = null;
+        bookingRequestDto.SitterId = UserId;
+        if (bookingRequestDto.PetId == 0)
+        {
+            bookingRequestDto.PetId = 0;
+        }
+        showBookingRequestModal = true;
+
+        if (bookingRequestDto.PetId != 0)
+        {
+            CalculateRecommendation();
+        }
+    }
+
+    private void HideBookingRequestModal()
+    {
+        showBookingRequestModal = false;
+        isSendingBooking = false;
+        bookingFormErrorMessage = null;
+        bookingFormSuccessMessage = null;
+    }
+
+    private async Task SendBookingRequest()
+    {
+        isSendingBooking = true;
+        bookingFormErrorMessage = null;
+        bookingFormSuccessMessage = null;
+
+        if (bookingRequestDto.PetId == 0)
+        {
+            bookingFormErrorMessage = "Please select a pet.";
+            isSendingBooking = false;
+            return;
+        }
+        if (bookingRequestDto.OfferedPoints <= 0)
+        {
+            bookingFormErrorMessage = "Offered points must be a positive number.";
+            isSendingBooking = false;
+            return;
+        }
+
+        var result = await BookingService.CreateBookingRequestAsync(bookingRequestDto);
+
+        if (result.IsSuccess)
+        {
+            bookingFormSuccessMessage = "Booking request sent successfully!";
+            await Task.Delay(2000);
+            HideBookingRequestModal();
+            Navigation.NavigateTo("/owner/sent-requests");
+        }
+        else
+        {
+            bookingFormErrorMessage = result.ErrorMessage;
+
+            if (string.IsNullOrEmpty(bookingFormErrorMessage))
+            {
+                if (result.StatusCode == HttpStatusCode.Conflict)
+                    bookingFormErrorMessage = "The requested time overlaps with an existing booking or the sitter is unavailable.";
+                else if (result.StatusCode == HttpStatusCode.Unauthorized)
+                    bookingFormErrorMessage = "You are not authorized to send this request.";
+                else
+                    bookingFormErrorMessage = "An error occurred while sending the request.";
+            }
+        }
+        isSendingBooking = false;
+    }
+
+    private void OnPetSelected(long petId)
+    {
+        bookingRequestDto.PetId = petId;
+        CalculateRecommendation();
+    }
+
+    private void CalculateRecommendation()
+    {
+        if (bookingRequestDto.PetId == 0 || sitterDetails == null || userPets == null)
+        {
+            recommendedPoints = 0;
+            return;
+        }
+
+        var pet = userPets.FirstOrDefault(p => p.PetId == bookingRequestDto.PetId);
+        if (pet == null)
+        {
+            recommendedPoints = 0;
+            return;
+        }
+
+        var duration = bookingRequestDto.EndTime - bookingRequestDto.StartTime;
+        bool isUrgent = (bookingRequestDto.StartTime - DateTime.UtcNow).TotalHours < 24;
+
+        recommendedPoints = RecommendationService.CalculateRecommendedPoints(
+            duration,
+            pet.Type,
+            pet.BehaviorComplexity,
+            isUrgent,
+            sitterDetails.AverageSitterRating,
+            sitterDetails.MinPoints,
+            _policyBaseRate
+        );
+    }
+
+    private void ApplyRecommendation()
+    {
+        bookingRequestDto.OfferedPoints = recommendedPoints;
+    }
+    
+    private void OpenReportModal()
+    {
+        showReportUserModal = true;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/findsitters");
+    }
+
+    private string GetPhotoUrl(string? photoUrl)
+    {
+        if (string.IsNullOrEmpty(photoUrl))
+            return string.Empty;
+
+        if (photoUrl.StartsWith("http"))
+            return photoUrl;
+
+        var backendUrl = Configuration["BackendUrl"] ?? "https://localhost:7185";
+        return $"{backendUrl.TrimEnd('/')}{photoUrl}";
+    }
+}

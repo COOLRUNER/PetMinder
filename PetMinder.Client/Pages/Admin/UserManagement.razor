@@ -1,0 +1,144 @@
+@page "/admin/users"
+@layout AdminLayout
+@using Microsoft.AspNetCore.Authorization
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@inject AdminService AdminService
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Admin • Users</PageTitle>
+
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-3xl font-bold text-slate-900">User Management</h1>
+        <p class="mt-1 text-slate-500">View balances, verify identities, and flag suspicious accounts.</p>
+    </div>
+    
+    <div class="relative w-96">
+        <input type="text" 
+               @bind="searchTerm" 
+               @bind:event="oninput" 
+               @onkeyup="HandleSearch"
+               placeholder="Search name or email..." 
+               class="w-full rounded-xl border-slate-200 bg-white pl-10 pr-4 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200" />
+        <div class="absolute left-3 top-3.5 text-slate-400">
+            <Heroicon Name="@HeroiconName.MagnifyingGlass" Type="@HeroiconType.Outline" class="w-5 h-5" />
+        </div>
+    </div>
+</div>
+
+<div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-left text-sm text-slate-600">
+        <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <tr>
+                <th class="px-6 py-4">User</th>
+                <th class="px-6 py-4">Role</th>
+                <th class="px-6 py-4 text-right">Points Balance</th>
+                <th class="px-6 py-4 text-center">Status</th>
+                <th class="px-6 py-4 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            @if (isLoading)
+            {
+                <tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">Loading users...</td></tr>
+            }
+            else if (users.Count == 0)
+            {
+                <tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">No users found.</td></tr>
+            }
+            else
+            {
+                @foreach (var user in users)
+                {
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <a href="admin/users/@user.UserId" class="font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer">
+                                    @user.FirstName @user.LastName
+                                </a>
+
+                                <span class="text-xs text-slate-500">@user.Email</span>
+                                <span class="text-[10px] text-slate-400">ID: @user.UserId • Joined @user.CreatedAt.ToShortDateString()</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                                @user.RoleString
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <span class="font-mono font-bold @(user.CurrentPoints < 0 ? "text-rose-600" : "text-emerald-600")">
+                                @user.CurrentPoints
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            @if (user.IsFlagged)
+                            {
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">
+                                    <Heroicon Name="@HeroiconName.ExclamationTriangle" Type="@HeroiconType.Mini" class="w-3.5 h-3.5" />
+                                    Flagged
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                                    Active
+                                </span>
+                            }
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button @onclick="() => ToggleFlag(user)" 
+                                    class="rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors @(user.IsFlagged ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100")">
+                                @(user.IsFlagged ? "Restore User" : "Flag Suspicious")
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<AdminUserListDTO> users = new();
+    private string searchTerm = "";
+    private bool isLoading = true;
+    private System.Timers.Timer? debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        StateHasChanged(); 
+        
+        users = await AdminService.GetUsersAsync(searchTerm);
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void HandleSearch(KeyboardEventArgs e)
+    {
+        debounceTimer?.Stop();
+        debounceTimer = new System.Timers.Timer(500);
+        debounceTimer.Elapsed += async (s, args) => 
+        { 
+            await InvokeAsync(LoadUsers); 
+            debounceTimer.Stop();
+        };
+        debounceTimer.Start();
+    }
+
+    private async Task ToggleFlag(AdminUserListDTO user)
+    {
+        var success = await AdminService.ToggleFlagUserAsync(user.UserId);
+        if (success) 
+        {
+            user.IsFlagged = !user.IsFlagged; 
+        }
+    }
+}

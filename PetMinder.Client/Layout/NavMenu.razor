@@ -1,0 +1,154 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<nav class="flex flex-1 flex-col gap-1 text-sm text-slate-700">
+
+    <AuthorizeView>
+        <Authorized>
+            <AuthorizeView Roles="Owner" Context="ownerPetsContext">
+                <Authorized>
+                    <NavLink
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                        activeClass="bg-slate-100 text-slate-900 font-semibold" href="pets">
+                        <Heroicon Name="@HeroiconName.Heart" Type="@HeroiconType.Outline" class="h-5 w-5 text-slate-500" />
+                        <span>My Pets</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <div class="mt-1 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-slate-700">
+                <NavLink
+                    class="flex flex-1 items-center gap-3 rounded-xl px-0 py-0 text-slate-700 transition hover:text-slate-900"
+                    activeClass="text-slate-900 font-semibold" href="profile">
+                    <Heroicon Name="@HeroiconName.UserCircle" Type="@HeroiconType.Outline"
+                        class="h-5 w-5 text-slate-500" />
+                    <span>Profile</span>
+                </NavLink>
+                @if (_isAuthenticated && _userPoints.HasValue)
+                {
+                    <span
+                        class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-600 ring-1 ring-amber-200">
+                        @_userPoints pts
+                    </span>
+                }
+            </div>
+
+            <AuthorizeView Roles="Owner" Context="ownerSearchContext">
+                <Authorized>
+                    <NavLink
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                        activeClass="bg-slate-100 text-slate-900 font-semibold" href="findsitters">
+                        <Heroicon Name="@HeroiconName.MagnifyingGlass" Type="@HeroiconType.Outline"
+                            class="h-5 w-5 text-slate-500" />
+                        <span>Find Sitters</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <NavLink
+                class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                activeClass="bg-slate-100 text-slate-900 font-semibold" href="recent-chats">
+                <Heroicon Name="@HeroiconName.ChatBubbleLeftRight" Type="@HeroiconType.Outline"
+                    class="h-5 w-5 text-slate-500" />
+                <span>Recent Chats</span>
+            </NavLink>
+
+            <AuthorizeView Roles="Owner">
+                <Authorized Context="ownerContext">
+                    <NavLink
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                        activeClass="bg-slate-100 text-slate-900 font-semibold" href="owner/sent-requests">
+                        <Heroicon Name="@HeroiconName.PaperAirplane" Type="@HeroiconType.Outline"
+                            class="h-5 w-5 text-slate-500 -rotate-45" />
+                        <span>Sent Requests</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="Sitter">
+                <Authorized Context="sitterContext">
+                    <NavLink
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                        activeClass="bg-slate-100 text-slate-900 font-semibold" href="sitter/received-requests">
+                        <Heroicon Name="@HeroiconName.InboxArrowDown" Type="@HeroiconType.Outline"
+                                  class="h-5 w-5 text-slate-500" />
+                        <span>Received Requests</span>
+                    </NavLink>
+                    <NavLink
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                        activeClass="bg-slate-100 text-slate-900 font-semibold" href="sitter/settings">
+                        <Heroicon Name="@HeroiconName.Cog6Tooth" Type="@HeroiconType.Outline"
+                                  class="h-5 w-5 text-slate-500" />
+                        <span>Sitter Settings</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="Admin">
+                <Authorized Context="adminContext">
+                    <div class="my-2 border-t border-slate-100 pt-2">
+                        <NavLink
+                            class="flex items-center gap-3 rounded-xl px-3 py-2 text-emerald-800 transition hover:bg-emerald-50"
+                            activeClass="bg-emerald-50 font-bold" href="admin/users">
+                            <Heroicon Name="@HeroiconName.ShieldCheck" Type="@HeroiconType.Solid" class="h-5 w-5 text-emerald-600" />
+                            <span>Admin Panel</span>
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <button
+                class="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+            @onclick="Logout">
+                <Heroicon Name="@HeroiconName.ArrowRightOnRectangle" Type="@HeroiconType.Outline" class="h-4 w-4" />
+                <span>Logout</span>
+            </button>
+        </Authorized>
+        <NotAuthorized>
+            <NavLink
+                class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                activeClass="bg-slate-100 text-slate-900 font-semibold" href="" Match="NavLinkMatch.All">
+                <Heroicon Name="@HeroiconName.Home" Type="@HeroiconType.Outline" class="h-5 w-5 text-slate-500" />
+                <span>Home</span>
+            </NavLink>
+            <NavLink
+                class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                activeClass="bg-slate-100 text-slate-900 font-semibold" href="register">
+                <Heroicon Name="@HeroiconName.UserPlus" Type="@HeroiconType.Outline" class="h-5 w-5 text-slate-500" />
+                <span>Get started</span>
+            </NavLink>
+            <NavLink
+                class="flex items-center gap-3 rounded-xl px-3 py-2 text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                activeClass="bg-slate-100 text-slate-900 font-semibold" href="login">
+                <Heroicon Name="@HeroiconName.ArrowLeftOnRectangle" Type="@HeroiconType.Outline"
+                    class="h-5 w-5 text-slate-500" />
+                <span>Log in</span>
+            </NavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</nav>
+
+@code {
+    private AuthenticationState? _authenticationState;
+    private int? _userPoints;
+    private bool _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authenticationState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAuthenticated = _authenticationState?.User?.Identity?.IsAuthenticated == true;
+        if (_isAuthenticated)
+        {
+            _userPoints = await AuthService.GetUserPointsAsync();
+        }
+    }
+
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/");
+    }
+}

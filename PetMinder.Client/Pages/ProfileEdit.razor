@@ -1,0 +1,400 @@
+@page "/profile/edit"
+@using PetMinder.Shared.DTO
+@using PetMinder.Models
+@using PetMinder.Client.Components
+@inject AuthService AuthService
+@inject SitterProfileService SitterProfileService
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                <Heroicon Name="@HeroiconName.PencilSquare" Type="@HeroiconType.Solid" class="h-8 w-8 text-emerald-500" />
+                Edit Profile
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">Update your personal information and sitter details.</p>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm">Loading profile...</p>
+            </div>
+        }
+        else if (profile == null)
+        {
+             <div class="rounded-xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
+                Could not load profile.
+            </div>
+        }
+        else
+        {
+            <div class="mb-6">
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Current Roles</label>
+                <div class="flex flex-wrap gap-2">
+                    @if (profile.Roles != null)
+                    {
+                        @foreach (var role in profile.Roles)
+                        {
+                            <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-500/10">
+                                @role
+                            </span>
+                        }
+                    }
+                </div>
+            </div>
+
+            <EditForm Model="editModel" OnValidSubmit="HandleValidSubmit" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <DataAnnotationsValidator />
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Email</label>
+                        <InputText class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 shadow-sm cursor-not-allowed"
+                                   @bind-Value="profile.Email" Disabled="true" />
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">First Name</label>
+                            <InputText class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                       @bind-Value="editModel.FirstName" />
+                            <ValidationMessage For="() => editModel.FirstName" class="text-xs text-rose-500 mt-1" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Last Name</label>
+                            <InputText class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                       @bind-Value="editModel.LastName" />
+                            <ValidationMessage For="() => editModel.LastName" class="text-xs text-rose-500 mt-1" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Phone</label>
+                        <InputText class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                   @bind-Value="editModel.Phone" />
+                        <ValidationMessage For="() => editModel.Phone" class="text-xs text-rose-500 mt-1" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Profile Photo</label>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <PhotoUpload CurrentPhotoUrl="@editModel.ProfilePhotoUrl" 
+                                         OnPhotoChanged="OnProfilePhotoChanged" 
+                                         UploadType="profile" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Add Roles</label>
+                        <div class="flex items-center gap-6">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <InputCheckbox class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" @bind-Value="addOwner" />
+                                <span class="text-sm font-medium text-slate-700">Owner</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <InputCheckbox class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" @bind-Value="addSitter" />
+                                <span class="text-sm font-medium text-slate-700">Sitter</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex gap-3">
+                    <button class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                            type="submit">
+                        <Heroicon Name="@HeroiconName.Check" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                        Save Changes
+                    </button>
+                    <button class="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                            type="button"
+                            @onclick="GoBack">
+                        <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                    @message
+                </div>
+            }
+
+            @if (profile.Roles != null && profile.Roles.Contains("Sitter"))
+            {
+                <div class="mt-10 space-y-8">
+                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                            <Heroicon Name="@HeroiconName.AcademicCap" Type="@HeroiconType.Solid" class="h-5 w-5 text-emerald-500" />
+                            Qualifications
+                        </h2>
+                        <ul class="space-y-3 mb-6">
+                            @if (qualifications == null)
+                            {
+                                <li class="text-slate-400 italic text-sm">Loading qualifications...</li>
+                            }
+                            else if (!qualifications.Any())
+                            {
+                                <li class="text-slate-400 italic text-sm">No qualifications listed.</li>
+                            }
+                            else
+                            {
+                                @foreach (var q in qualifications)
+                                {
+                                    <li class="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                        <span>
+                                            <span class="font-medium text-slate-900">@q.QualificationType.Name</span>
+                                            <span class="text-slate-500 mx-1">-</span>
+                                            @q.QualificationType.Description
+                                        </span>
+                                        <button class="ml-2 inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-colors"
+                                                @onclick="() => RemoveQualification(q.QualificationType.QualificationTypeId)">
+                                            <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Outline" class="h-3.5 w-3.5 mr-1" />
+                                            Remove
+                                        </button>
+                                    </li>
+                                }
+                            }
+                        </ul>
+
+                        <div class="flex flex-col sm:flex-row gap-2">
+                             <select class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind="selectedQualificationTypeId">
+                                <option value="">Select qualification to add</option>
+                                @if (qualificationTypes != null)
+                                {
+                                    @foreach (var type in qualificationTypes)
+                                    {
+                                        <option value="@type.QualificationTypeId">@type.Name - @type.Description</option>
+                                    }
+                                }
+                            </select>
+                            <button class="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                                    @onclick="AddQualification"
+                                    disabled="@(selectedQualificationTypeId == null)">
+                                <Heroicon Name="@HeroiconName.Plus" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                            <Heroicon Name="@HeroiconName.NoSymbol" Type="@HeroiconType.Solid" class="h-5 w-5 text-rose-500" />
+                            Restrictions
+                        </h2>
+                        <ul class="space-y-3 mb-6">
+                            @if (restrictions == null)
+                            {
+                                <li class="text-slate-400 italic text-sm">Loading restrictions...</li>
+                            }
+                            else if (!restrictions.Any())
+                            {
+                                <li class="text-slate-400 italic text-sm">No restrictions specified.</li>
+                            }
+                            else
+                            {
+                                @foreach (var r in restrictions)
+                                {
+                                     <li class="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                        <span>
+                                            <span class="font-medium text-slate-900">@r.RestrictionType.Name</span>
+                                            <span class="text-slate-500 mx-1">-</span>
+                                            @r.RestrictionType.Description
+                                        </span>
+                                        <button class="ml-2 inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-colors"
+                                                @onclick="() => RemoveRestriction(r.RestrictionType.RestrictionTypeId)">
+                                            <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Outline" class="h-3.5 w-3.5 mr-1" />
+                                            Remove
+                                        </button>
+                                    </li>
+                                }
+                            }
+                        </ul>
+
+                         <div class="flex flex-col sm:flex-row gap-2">
+                            <select class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind="selectedRestrictionTypeId">
+                                <option value="">Select restriction to add</option>
+                                @if (restrictionTypes != null)
+                                {
+                                    @foreach (var type in restrictionTypes)
+                                    {
+                                        <option value="@type.RestrictionTypeId">@type.Name - @type.Description</option>
+                                    }
+                                }
+                            </select>
+                            <button class="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                                    @onclick="AddRestriction"
+                                    disabled="@(selectedRestrictionTypeId == null)">
+                                <Heroicon Name="@HeroiconName.Plus" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string? message;
+    private UserProfileDTO? profile;
+    private UpdateUserDTO editModel = new();
+    private bool addOwner;
+    private bool addSitter;
+    private List<SitterQualificationDTO>? qualifications;
+    private List<QualificationTypeDTO>? qualificationTypes;
+    private long? selectedQualificationTypeId;
+    private List<SitterRestrictionDTO>? restrictions;
+    private List<RestrictionTypeDTO>? restrictionTypes;
+    private long? selectedRestrictionTypeId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        profile = await AuthService.GetUserProfileAsync();
+        if (profile != null)
+        {
+            editModel = new UpdateUserDTO
+            {
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                Phone = profile.Phone,
+                ProfilePhotoUrl = profile.ProfilePhotoUrl
+            };
+            addOwner = profile.Roles?.Contains("Owner") ?? false;
+            addSitter = profile.Roles?.Contains("Sitter") ?? false;
+            if (profile.Roles?.Contains("Sitter") ?? false)
+            {
+                qualifications = await SitterProfileService.GetMyQualificationsAsync() ?? new();
+                qualificationTypes = await SitterProfileService.GetQualificationTypesAsync() ?? new();
+                restrictions = await SitterProfileService.GetMyRestrictionsAsync() ?? new();
+                restrictionTypes = await SitterProfileService.GetRestrictionTypesAsync() ?? new();
+            }
+        }
+        isLoading = false;
+    }
+
+    private void OnProfilePhotoChanged(string? photoUrl)
+    {
+        editModel.ProfilePhotoUrl = photoUrl;
+    }
+
+    private async Task HandleValidSubmit()
+{
+    if (profile == null) return;
+
+    editModel.AddRoles = UserRole.None;
+    editModel.RemoveRoles = UserRole.None;
+
+    bool currentlyHasOwner = profile.Roles?.Contains("Owner") ?? false;
+    
+    if (!currentlyHasOwner && addOwner)
+    {
+        editModel.AddRoles |= UserRole.Owner;
+    }
+    else if (currentlyHasOwner && !addOwner)
+    {
+        editModel.RemoveRoles |= UserRole.Owner;
+    }
+
+    bool currentlyHasSitter = profile.Roles?.Contains("Sitter") ?? false;
+
+    if (!currentlyHasSitter && addSitter)
+    {
+        editModel.AddRoles |= UserRole.Sitter;
+    }
+    else if (currentlyHasSitter && !addSitter)
+    {
+        editModel.RemoveRoles |= UserRole.Sitter;
+    }
+
+    if (editModel.AddRoles == UserRole.None) editModel.AddRoles = null;
+    if (editModel.RemoveRoles == UserRole.None) editModel.RemoveRoles = null;
+
+    var (success, errorMessage) = await AuthService.UpdateUserProfileAsync(editModel);
+
+    if (success)
+    {
+        NavigationManager.NavigateTo("/profile");
+    }
+    else
+    {
+        message = !string.IsNullOrWhiteSpace(errorMessage)
+            ? errorMessage
+            : "Failed to update profile.";
+    }
+}
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/profile");
+    }
+
+    private async Task AddQualification()
+    {
+        if (selectedQualificationTypeId == null) return;
+        var result = await SitterProfileService.AddQualificationAsync(new AddSitterQualificationDTO { QualificationTypeId = selectedQualificationTypeId.Value });
+        if (result)
+        {
+            qualifications = await SitterProfileService.GetMyQualificationsAsync() ?? new();
+            message = "Qualification added.";
+        }
+        else
+        {
+            message = "Failed to add qualification.";
+        }
+    }
+
+    private async Task RemoveQualification(long qualificationTypeId)
+    {
+        var result = await SitterProfileService.RemoveQualificationAsync(qualificationTypeId);
+        if (result)
+        {
+            qualifications = await SitterProfileService.GetMyQualificationsAsync() ?? new();
+            message = "Qualification removed.";
+        }
+        else
+        {
+            message = "Failed to remove qualification.";
+        }
+    }
+
+    private async Task AddRestriction()
+    {
+        if (selectedRestrictionTypeId == null) return;
+        var result = await SitterProfileService.AddRestrictionAsync(new AddSitterRestrictionDTO { RestrictionTypeId = selectedRestrictionTypeId.Value });
+        if (result)
+        {
+            restrictions = await SitterProfileService.GetMyRestrictionsAsync() ?? new();
+            message = "Restriction added.";
+        }
+        else
+        {
+            message = "Failed to add restriction.";
+        }
+    }
+
+    private async Task RemoveRestriction(long restrictionTypeId)
+    {
+        var result = await SitterProfileService.RemoveRestrictionAsync(restrictionTypeId);
+        if (result)
+        {
+            restrictions = await SitterProfileService.GetMyRestrictionsAsync() ?? new();
+            message = "Restriction removed.";
+        }
+        else
+        {
+            message = "Failed to remove restriction.";
+        }
+    }
+}

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazor.Heroicons" Version="2.2.0" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="FluentEmail.Core" Version="3.0.2" />
+    <PackageReference Include="FluentEmail.Smtp" Version="3.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.16" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.16" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.6" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.12.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PetMinder.Shared\PetMinder.Shared.csproj" />
+  </ItemGroup>
+
+   <Target Name="TailwindBuild" BeforeTargets="Build">
+    <Message Importance="High" Text="Checking for node_modules to run Tailwind CSS build..." />
+    <Message Condition="!Exists('$(ProjectDir)node_modules')" Importance="High" Text="node_modules not found; skipping Tailwind CSS build. Run 'npm install' in the 'PetMinder.Client' folder to enable CSS generation." />
+    <Exec Condition="Exists('$(ProjectDir)node_modules')" Command="npm run build:css" ContinueOnError="true" WorkingDirectory="$(ProjectDir)" />
+    <Message Condition="Exists('$(ProjectDir)node_modules') and '$(MSBuildLastTaskResult)' == 'false'" Importance="High" Text="Tailwind CSS build failed (npm/tailwind not found or errored). Make sure Node.js is installed and run 'npm install' in the 'PetMinder.Client' directory." />
+  </Target>
+
+  <Target Name="RemoveTailwindObjStaticWebAssets" BeforeTargets="ComputeStaticWebAssetItems">
+    <Message Importance="High" Text="Removing generated tailwind files from StaticWebAsset items (if any) to avoid missing Fingerprint metadata." />
+    <ItemGroup>
+      <StaticWebAsset Remove="obj**\**\*.tailwind.css" />
+      <StaticWebAsset Remove="obj\**\*.tailwind.css" />
+      <Content Remove="obj\**\*.tailwind.css" />
+    </ItemGroup>
+  </Target>
+</Project>

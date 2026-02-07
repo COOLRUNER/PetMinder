@@ -1,0 +1,433 @@
+@page "/sitter/settings"
+@attribute [Authorize(Roles = "Sitter")]
+@using Microsoft.AspNetCore.Authorization
+@using PetMinder.Client.Services
+@using PetMinder.Shared.DTO
+@inject SitterAvailabilityService SitterAvailabilityService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Sitter Settings</PageTitle>
+
+<div class="min-h-screen bg-slate-50 text-slate-900">
+
+    <section class="mx-auto max-w-5xl px-4 py-12 md:py-16">
+
+        <div class="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900">Sitter Settings</h1>
+                <p class="text-sm text-slate-600">Manage your booking requirements and availability.</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                @successMessage
+            </div>
+        }
+
+        <!-- Min Points Section -->
+        <div class="mb-10 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
+                <h2 class="text-lg font-bold text-slate-900">Booking Requirements</h2>
+            </div>
+            <div class="p-8">
+                <div class="max-w-md">
+                    <label class="block mb-2 text-sm font-semibold text-slate-700">Minimum Points Required</label>
+                    <p class="mb-4 text-xs text-slate-500">
+                        Set the minimum number of points an owner must offer per hour for their booking request to be
+                        accepted.
+                    </p>
+
+                    <div
+                        class="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200 flex gap-2">
+                        <Heroicon Name="@HeroiconName.ExclamationTriangle" Type="@HeroiconType.Solid"
+                            class="h-4 w-4 shrink-0 text-amber-600" />
+                        <div>
+                            <strong>Note:</strong> This setting is now <strong>Points Per Hour</strong>. If you
+                            previously set a "per stay" amount (e.g., 50 for a whole day), please update this to your
+                            hourly rate (e.g., 5-10 pts/hr).
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="relative rounded-xl shadow-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span class="text-slate-500 sm:text-sm">pts</span>
+                            </div>
+                            <input type="number"
+                                class="block w-full rounded-xl border-slate-300 pl-10 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2.5"
+                            @bind="minPoints" min="0" />
+                        </div>
+                        <button
+                            class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors disabled:opacity-50"
+                        @onclick="SaveMinPoints" disabled="@isSavingPoints">
+                            @if (isSavingPoints)
+                            {
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>Save</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Availability Section Header -->
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 class="text-xl font-bold text-slate-900">Availability Schedule</h2>
+            @if (!showAddForm && !showEditForm)
+            {
+                <button
+                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 
+                               text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                @onclick="ShowAddForm">
+                    <Heroicon Name="@HeroiconName.Plus" Type="@HeroiconType.Solid" class="h-5 w-5" />
+                    Add Availability
+                </button>
+            }
+        </div>
+
+        @if (showAddForm || showEditForm)
+        {
+            <div class="mb-10 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+
+                <div class="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
+                    <h2 class="text-lg font-bold text-slate-900">
+                        @(showAddForm ? "Add New Slot" : "Edit Slot")
+                    </h2>
+                </div>
+
+                <div class="p-8">
+                    <EditForm Model="@(showAddForm ? newAvailability : editAvailability)"
+                        OnValidSubmit="@(showAddForm ? HandleAddAvailability : HandleEditAvailability)">
+                        <DataAnnotationsValidator />
+
+                        @if (!string.IsNullOrEmpty(formMessage))
+                        {
+                            <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                                @formMessage
+                            </div>
+                        }
+
+                        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <div>
+                                <label class="block mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Start
+                                    Time</label>
+
+                                @if (showAddForm)
+                                {
+                                    <InputDateTime
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind-Value="newAvailability.StartTime" />
+                                    <ValidationMessage For="() => newAvailability.StartTime"
+                                        class="mt-1 text-xs text-rose-500" />
+                                }
+                                else
+                                {
+                                    <InputDateTime
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind-Value="editAvailability.StartTime" />
+                                    <ValidationMessage For="() => editAvailability.StartTime"
+                                        class="mt-1 text-xs text-rose-500" />
+                                }
+                            </div>
+
+                            <div>
+                                <label class="block mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">End
+                                    Time</label>
+
+                                @if (showAddForm)
+                                {
+                                    <InputDateTime
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind-Value="newAvailability.EndTime" />
+                                    <ValidationMessage For="() => newAvailability.EndTime" class="mt-1 text-xs text-rose-500" />
+                                }
+                                else
+                                {
+                                    <InputDateTime
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    @bind-Value="editAvailability.EndTime" />
+                                    <ValidationMessage For="() => editAvailability.EndTime"
+                                        class="mt-1 text-xs text-rose-500" />
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex items-center gap-3 border-t border-slate-100 pt-6">
+                            <button type="submit"
+                                class="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors">
+                                @(showAddForm ? "Add Slot" : "Save Changes")
+                            </button>
+
+                            <button type="button"
+                                class="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2 transition-colors"
+                            @onclick="@(showAddForm ? HideAddForm : HideEditForm)">
+                                Cancel
+                            </button>
+                        </div>
+
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm">Loading availability...</p>
+            </div>
+        }
+        else if (errorMessage != null)
+        {
+            <div class="rounded-xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
+                @errorMessage
+            </div>
+        }
+        else if (availabilities == null || !availabilities.Any())
+        {
+            <div
+                class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-20 text-center">
+                <div class="mb-4 text-slate-400">
+                    <Heroicon Name="@HeroiconName.CalendarDays" Type="@HeroiconType.Outline" class="h-10 w-10" />
+                </div>
+                <h3 class="text-lg font-semibold text-slate-900">No availability yet</h3>
+                <p class="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Add availability slots to show pet owners when
+                    you’re free to help.</p>
+
+                <button
+                    class="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
+                @onclick="ShowAddForm">
+                    <Heroicon Name="@HeroiconName.Plus" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                    Add your first slot
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+                <div
+                    class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 text-sm text-slate-600 flex items-center justify-between">
+                    <span class="font-medium text-slate-900">Your Slots</span>
+                    <span
+                        class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">@availabilities.Count
+                        active</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-100">
+                            <tr>
+                                <th class="px-6 py-4 font-semibold">Start</th>
+                                <th class="px-6 py-4 font-semibold">End</th>
+                                <th class="px-6 py-4 text-right font-semibold">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var slot in availabilities)
+                            {
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-900">
+                                        @slot.StartTime.ToLocalTime().ToString("g")
+                                    </td>
+                                    <td class="px-6 py-4 font-medium text-slate-900">
+                                        @slot.EndTime.ToLocalTime().ToString("g")
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button
+                                            class="mr-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-700 transition-colors"
+                                        @onclick="() => ShowEditForm(slot)">
+                                            <Heroicon Name="@HeroiconName.PencilSquare" Type="@HeroiconType.Solid"
+                                                class="h-3.5 w-3.5" />
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            class="inline-flex items-center gap-1 rounded-lg border border-rose-100 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 hover:border-rose-200 transition-colors"
+                                        @onclick="() => DeleteAvailability(slot.AvailabilityId)">
+                                            <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Solid"
+                                                class="h-3.5 w-3.5" />
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        }
+
+    </section>
+</div>
+
+@code {
+    private List<SitterAvailabilityDTO>? availabilities;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? formMessage;
+    private string? successMessage;
+
+    private int minPoints = 0;
+    private bool isSavingPoints = false;
+
+    private bool showAddForm = false;
+    private bool showEditForm = false;
+
+    private AddSitterAvailabilityDTO newAvailability = new();
+    private UpdateSitterAvailabilityDTO editAvailability = new();
+    private SitterAvailabilityDTO? selectedAvailability;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var tasks = new List<Task>();
+            var availabilityTask = SitterAvailabilityService.GetMySitterAvailabilitiesAsync();
+            var profileTask = AuthService.GetUserProfileAsync();
+
+            await Task.WhenAll(availabilityTask, profileTask);
+
+            availabilities = await availabilityTask;
+            var profile = await profileTask;
+
+            if (profile != null)
+            {
+                minPoints = profile.MinPoints;
+            }
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { isLoading = false; }
+    }
+
+    private async Task LoadAvailabilities()
+    {
+        try { availabilities = await SitterAvailabilityService.GetMySitterAvailabilitiesAsync(); }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private async Task SaveMinPoints()
+    {
+        isSavingPoints = true;
+        successMessage = null;
+        try
+        {
+            var updateDto = new UpdateUserDTO { MinPoints = minPoints };
+            var result = await AuthService.UpdateUserProfileAsync(updateDto);
+
+            if (result.Success)
+            {
+                successMessage = "Settings saved successfully.";
+                // Clear success message after 3 seconds
+                _ = Task.Delay(3000).ContinueWith(_ => InvokeAsync(() => { successMessage = null; StateHasChanged(); }));
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Failed to save settings.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSavingPoints = false;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        formMessage = null;
+        showEditForm = false;
+        showAddForm = true;
+        newAvailability = new() { StartTime = DateTime.Now.AddHours(1), EndTime = DateTime.Now.AddHours(2) };
+    }
+
+    private void HideAddForm() => showAddForm = false;
+
+    private void ShowEditForm(SitterAvailabilityDTO slot)
+    {
+        selectedAvailability = slot;
+        showAddForm = false;
+        showEditForm = true;
+        editAvailability = new() { StartTime = slot.StartTime.ToLocalTime(), EndTime = slot.EndTime.ToLocalTime() };
+    }
+
+    private void HideEditForm() => showEditForm = false;
+
+    private async Task HandleAddAvailability()
+    {
+        if (newAvailability.StartTime >= newAvailability.EndTime)
+        {
+            formMessage = "End time must be after start time.";
+            return;
+        }
+
+        var dto = new AddSitterAvailabilityDTO
+            {
+                StartTime = newAvailability.StartTime.ToUniversalTime(),
+                EndTime = newAvailability.EndTime.ToUniversalTime()
+            };
+
+        var result = await SitterAvailabilityService.AddSitterAvailabilityAsync(dto);
+
+        if (result.IsSuccess)
+        {
+            await LoadAvailabilities();
+            HideAddForm();
+        }
+        else formMessage = result.ErrorMessage;
+    }
+
+    private async Task HandleEditAvailability()
+    {
+        if (selectedAvailability == null) return;
+
+        if (editAvailability.StartTime >= editAvailability.EndTime)
+        {
+            formMessage = "End time must be after start time.";
+            return;
+        }
+
+        var dto = new UpdateSitterAvailabilityDTO
+            {
+                StartTime = editAvailability.StartTime.ToUniversalTime(),
+                EndTime = editAvailability.EndTime.ToUniversalTime()
+            };
+
+        var result = await SitterAvailabilityService.UpdateSitterAvailabilityAsync(selectedAvailability.AvailabilityId, dto);
+
+        if (result.IsSuccess)
+        {
+            await LoadAvailabilities();
+            HideEditForm();
+        }
+        else formMessage = result.ErrorMessage;
+    }
+
+    private async Task DeleteAvailability(long id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Delete this slot?"))
+        {
+            var success = await SitterAvailabilityService.DeleteSitterAvailabilityAsync(id);
+            if (success) await LoadAvailabilities();
+        }
+    }
+}

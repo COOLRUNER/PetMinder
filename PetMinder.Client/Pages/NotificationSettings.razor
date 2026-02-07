@@ -1,0 +1,164 @@
+@page "/profile/notifications"
+@using PetMinder.Shared.DTO
+@using PetMinder.Models
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Notification Settings</PageTitle>
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-3xl mx-auto">
+        <div class="mb-8 flex items-center gap-4">
+            <button @onclick="GoBack" class="flex h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                <Heroicon Name="@HeroiconName.ArrowLeft" Type="@HeroiconType.Outline" class="w-5 h-5" />
+            </button>
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">Notification Settings</h1>
+                <p class="text-sm text-slate-500">Choose which alerts you'd like to receive.</p>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-4 text-sm font-medium">Loading preferences...</p>
+            </div>
+        }
+        else if (preferences == null)
+        {
+            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-800 shadow-sm">
+                <p>Unable to load notification preferences. Please try again later.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-4">
+                <div class="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">Booking Alerts</h2>
+                    </div>
+                    <div class="divide-y divide-slate-100">
+                        @foreach (var pref in preferences.Where(p => p.NotificationType.ToString().StartsWith("Booking")))
+                        {
+                            <div class="flex items-center justify-between px-6 py-5 hover:bg-slate-50 transition-colors">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-slate-900">@FormatEnumName(pref.NotificationType.ToString())</h3>
+                                    <p class="text-xs text-slate-500">Receive alerts related to booking updates.</p>
+                                </div>
+                                <div class="flex items-center">
+                                    <button @onclick="() => TogglePreference(pref)" 
+                                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none @(pref.IsEnabled ? "bg-emerald-500" : "bg-slate-200")">
+                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out @(pref.IsEnabled ? "translate-x-5" : "translate-x-0")"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">System & Other</h2>
+                    </div>
+                    <div class="divide-y divide-slate-100">
+                        @foreach (var pref in preferences.Where(p => !p.NotificationType.ToString().StartsWith("Booking")))
+                        {
+                            <div class="flex items-center justify-between px-6 py-5 hover:bg-slate-50 transition-colors">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-slate-900">@FormatEnumName(pref.NotificationType.ToString())</h3>
+                                    <p class="text-xs text-slate-500">Important updates about your account and the system.</p>
+                                </div>
+                                <div class="flex items-center">
+                                    <button @onclick="() => TogglePreference(pref)" 
+                                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none @(pref.IsEnabled ? "bg-emerald-500" : "bg-slate-200")">
+                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out @(pref.IsEnabled ? "translate-x-5" : "translate-x-0")"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @if (isSaving)
+            {
+                <div class="fixed bottom-8 right-8 flex items-center gap-3 rounded-full bg-slate-900 px-6 py-3 text-white shadow-lg animate-fade-in">
+                    <div class="h-4 w-4 animate-spin rounded-full border border-white border-t-transparent"></div>
+                    <span class="text-sm font-medium">Saving preferences...</span>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+
+
+@code {
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private List<NotificationPreferenceDTO>? preferences;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPreferences();
+    }
+
+    private async Task LoadPreferences()
+    {
+        isLoading = true;
+        try
+        {
+            preferences = await NotificationService.GetPreferencesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading preferences: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task TogglePreference(NotificationPreferenceDTO pref)
+    {
+        pref.IsEnabled = !pref.IsEnabled;
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            await NotificationService.UpdatePreferenceAsync(pref);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving preference: {ex.Message}");
+            pref.IsEnabled = !pref.IsEnabled;
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/profile");
+
+    private string FormatEnumName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+        
+        var result = new System.Text.StringBuilder();
+        result.Append(name[0]);
+        for (int i = 1; i < name.Length; i++)
+        {
+            if (char.IsUpper(name[i]) && !char.IsUpper(name[i - 1]))
+            {
+                result.Append(' ');
+            }
+            result.Append(name[i]);
+        }
+        return result.ToString();
+    }
+}

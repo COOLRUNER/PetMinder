@@ -1,0 +1,793 @@
+@page "/owner/sent-requests"
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using PetMinder.Models
+@using PetMinder.Client.Components
+@inject BookingService BookingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ReviewService ReviewService
+
+<PageTitle>Sent Booking Requests</PageTitle>
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">My Sent Booking Requests</h1>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm">Loading your sent requests...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+                @errorMessage
+            </div>
+        }
+        else if (sentRequests == null || !sentRequests.Any())
+        {
+            <div class="flex flex-col items-center rounded-3xl border border-dashed border-slate-300 bg-slate-100 px-4 py-20 text-center">
+                <div class="mb-4 rounded-full bg-slate-200 p-4 text-slate-400">
+                    <Heroicon Name="@HeroiconName.PaperAirplane" Type="@HeroiconType.Outline" class="h-10 w-10 -rotate-45" />
+                </div>
+                <h3 class="text-lg font-semibold">No requests sent</h3>
+                <p class="text-sm text-slate-500">You haven't sent any booking requests yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-4">
+                @foreach (var request in sentRequests)
+                {
+                    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                        <div class="p-6">
+                            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                                <div>
+                                    <h5 class="text-lg font-bold text-slate-900">
+                                        Request for <span class="text-emerald-600">@request.PetName</span>
+                                    </h5>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        with @request.SitterFirstName @request.SitterLastName
+                                    </p>
+
+                                    <button class="mt-2 flex items-center text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wide"
+                                            @onclick="() => ShowReportModal(request.SitterId, request.SitterFirstName)">
+                                        <Heroicon Name="@HeroiconName.Flag" Type="@HeroiconType.Mini" class="mr-1 h-3 w-3" />
+                                        Report Issue
+                                    </button>
+                                </div>
+                                
+                                <div>
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-500/10">
+                                        @request.Status
+                                            </span>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                <div class="rounded-xl bg-slate-50 p-3">
+                                            <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                                                <Heroicon Name="@HeroiconName.Calendar" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                                Time
+                                            </span>
+                                    <div class="mt-1 font-medium text-slate-700">
+                                        @request.StartTime.ToLocalTime().ToString("g")
+                                        <span class="text-slate-400 mx-1">➜</span>
+                                        @request.EndTime.ToLocalTime().ToString("g")
+                                    </div>
+                                </div>
+                                <div class="rounded-xl bg-slate-50 p-3">
+                                            <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                                                <Heroicon Name="@HeroiconName.Banknotes" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                                Details
+                                            </span>
+                                    <div class="mt-1 font-medium text-slate-700">
+                                        Offered: <span class="text-emerald-600">@request.OfferedPoints pts</span>
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">
+                                        Sent: @request.CreatedAt.ToLocalTime().ToString("g")
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Pending Change Proposal Section *@
+                            @if (request.Status == BookingStatus.Accepted && request.PendingChange != null)
+                            {
+                                @if (request.PendingChange.RequestedBy == ChangeRequestedBy.Sitter)
+                                {
+                                    @* Sitter proposed a change - Owner can Accept/Reject *@
+                                    <div class="mt-4 rounded-xl border-2 border-sky-200 bg-sky-50 p-4">
+                                        <div class="flex items-start gap-3">
+                                            <Heroicon Name="@HeroiconName.Clock" Type="@HeroiconType.Solid" class="h-5 w-5 text-sky-600 flex-shrink-0 mt-0.5" />
+                                            <div class="flex-1">
+                                                <h6 class="font-semibold text-slate-900 mb-1">Sitter Proposed a Change</h6>
+                                                <p class="text-sm text-slate-600 mb-2">
+                                                    @request.SitterFirstName wants to change the booking time:
+                                                </p>
+                                                <div class="text-sm text-slate-700 mb-3">
+                                                    <span class="font-medium">New Time:</span>
+                                                    @request.PendingChange.ProposedStart?.ToLocalTime().ToString("g") - @request.PendingChange.ProposedEnd?.ToLocalTime().ToString("g")
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <button class="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-400"
+                                                            @onclick="() => HandleAcceptProposal(request.PendingChange.ChangeId)"
+                                                            disabled="@isProcessingProposal">
+                                                        @if (isProcessingProposal && processingChangeId == request.PendingChange.ChangeId)
+                                                        {
+                                                            <span class="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <Heroicon Name="@HeroiconName.Check" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                                        }
+                                                        Accept
+                                                    </button>
+                                                    <button class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50"
+                                                            @onclick="() => ShowRejectProposalModal(request)">
+                                                        <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @* Owner's own proposal - Show status message *@
+                                    <div class="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50 p-4">
+                                        <div class="flex items-start gap-3">
+                                            <Heroicon Name="@HeroiconName.Clock" Type="@HeroiconType.Solid" class="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <h6 class="font-semibold text-slate-900 mb-1">Your Proposal Pending</h6>
+                                                <p class="text-sm text-slate-600">
+                                                    Waiting for @request.SitterFirstName to respond to your proposed change:
+                                                </p>
+                                                <div class="text-sm text-slate-700 mt-1">
+                                                    <span class="font-medium">Proposed Time:</span>
+                                                    @request.PendingChange.ProposedStart?.ToLocalTime().ToString("g") - @request.PendingChange.ProposedEnd?.ToLocalTime().ToString("g")
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+
+
+                            @if (request.Status == BookingStatus.Accepted)
+                            {
+                                <div class="mt-4 flex flex-wrap items-center justify-end gap-3">
+                                    <button class="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                                            @onclick="() => HandleCompleteBooking(request)">
+                                        <Heroicon Name="@HeroiconName.CheckBadge" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                        Complete
+                                    </button>
+                                    <button class="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                                            @onclick="() => ShowProposeChangeModal(request)">
+                                        <Heroicon Name="@HeroiconName.PencilSquare" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                        Propose Change
+                                    </button>
+                                    <button class="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                                            @onclick="() => ShowCancelModal(request)">
+                                        <Heroicon Name="@HeroiconName.XCircle" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                        Cancel Booking
+                                    </button>
+                                </div>
+                            }
+                            else if (request.Status == BookingStatus.Completed)
+                            {
+                                <div class="mt-4 flex flex-wrap items-center justify-end gap-3">
+
+                                    @if (!request.HasOwnerReviewed)
+                                    {
+                                        <button class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                                                @onclick="() => ShowReviewModal(request)">
+                                            <Heroicon Name="@HeroiconName.Star" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                            Leave Review
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">
+                                            <Heroicon Name="@HeroiconName.Check" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                            Review Submitted
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (showProposeChangeModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h5 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <Heroicon Name="@HeroiconName.PencilSquare" Type="@HeroiconType.Outline" class="h-6 w-6 text-sky-500" />
+                        Propose Booking Change
+                    </h5>
+                    <button type="button" class="text-slate-400 transition hover:text-slate-500" @onclick="HideProposeChangeModal">
+                        <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Solid" class="h-6 w-6" />
+                    </button>
+                </div>
+            </div>
+
+            <EditForm Model="proposeChangeDto" OnValidSubmit="HandleProposeChange">
+                <DataAnnotationsValidator />
+
+                <div class="p-6">
+                    <ValidationSummary class="mb-4 text-xs text-rose-600" />
+
+                    @if (!string.IsNullOrEmpty(modalErrorMessage))
+                    {
+                        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                            @modalErrorMessage
+                        </div>
+                    }
+
+                    <p class="mb-4 text-sm text-slate-600">
+                        Propose new times for the booking with
+                        <strong class="text-slate-900">@selectedBookingRequest?.SitterFirstName @selectedBookingRequest?.SitterLastName</strong> for
+                        <strong class="text-slate-900">@selectedBookingRequest?.PetName</strong>.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="newStartTime" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                                New Start Time
+                            </label>
+                            <InputDate id="newStartTime"
+                                       Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="proposeChangeDto.ProposedStartTime"
+                                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            <ValidationMessage For="@(() => proposeChangeDto.ProposedStartTime)" class="text-xs text-rose-500" />
+                        </div>
+
+                        <div>
+                            <label for="newEndTime" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                                New End Time
+                            </label>
+                            <InputDate id="newEndTime"
+                                       Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="proposeChangeDto.ProposedEndTime"
+                                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            <ValidationMessage For="@(() => proposeChangeDto.ProposedEndTime)" class="text-xs text-rose-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+                    <button type="button"
+                            class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            @onclick="HideProposeChangeModal"
+                            disabled="@isProcessingRequest">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-500 disabled:opacity-70"
+                            disabled="@isProcessingRequest">
+                        @if (isProcessingRequest)
+                        {
+                            <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                            <span>Proposing...</span>
+                        }
+                        else
+                        {
+                            <span>Propose Change</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showCancelModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h5 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <Heroicon Name="@HeroiconName.ExclamationTriangle" Type="@HeroiconType.Outline" class="h-6 w-6 text-rose-500" />
+                        Cancel Booking
+                    </h5>
+                    <button type="button" class="text-slate-400 transition hover:text-slate-500" @onclick="HideCancelModal">
+                        <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Solid" class="h-6 w-6" />
+                    </button>
+                </div>
+            </div>
+
+            <EditForm Model="cancelDto" OnValidSubmit="HandleCancelBooking">
+                <DataAnnotationsValidator />
+
+                <div class="p-6">
+                    <ValidationSummary class="mb-4 text-xs text-rose-600" />
+
+                    @if (!string.IsNullOrEmpty(cancelErrorMessage))
+                    {
+                        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                            @cancelErrorMessage
+                        </div>
+                    }
+
+                    <p class="mb-4 text-sm text-slate-600">
+                        Are you sure you want to cancel this booking with
+                        <strong class="text-slate-900">@selectedCancelRequest?.SitterFirstName @selectedCancelRequest?.SitterLastName</strong> for
+                        <strong class="text-slate-900">@selectedCancelRequest?.PetName</strong>?
+                    </p>
+
+                    @if (selectedCancelRequest != null)
+                    {
+                        var timeUntilStart = selectedCancelRequest.StartTime.ToLocalTime() - DateTime.Now;
+                        var policyInfo = GetCancellationPolicyInfo(timeUntilStart);
+
+                        <div class="@($"mb-4 rounded-xl border-2 {policyInfo.BorderColor} bg-gradient-to-br {policyInfo.BgGradient} p-4")">
+                            <div class="flex items-start gap-3">
+                                <Heroicon Name="@HeroiconName.InformationCircle" Type="@HeroiconType.Solid" class="@($"h-5 w-5 {policyInfo.IconColor} flex-shrink-0 mt-0.5")" />
+                                <div>
+                                    <h6 class="font-semibold text-slate-900 mb-1">@policyInfo.PolicyName</h6>
+                                    <p class="text-sm text-slate-700">@policyInfo.Description</p>
+                                    <p class="@($"text-sm font-bold {policyInfo.RefundColor} mt-2")">Refund: @policyInfo.RefundPercentage% (@((int)(selectedCancelRequest.OfferedPoints * policyInfo.RefundPercentage / 100.0)) points)</p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="space-y-2">
+                        <label for="cancelReason" class="block text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Cancellation Reason (Required)
+                        </label>
+                        <InputTextArea id="cancelReason"
+                                       @bind-Value="cancelDto.Reason"
+                                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                       rows="3"
+                                       placeholder="Please provide a reason for cancellation (10-500 characters)..." />
+                        <ValidationMessage For="@(() => cancelDto.Reason)" class="text-xs text-rose-500" />
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+                    <button type="button"
+                            class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            @onclick="HideCancelModal"
+                            disabled="@isProcessingCancel">
+                        Keep Booking
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-rose-500 disabled:opacity-70"
+                            disabled="@isProcessingCancel">
+                        @if (isProcessingCancel)
+                        {
+                            <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                            <span>Cancelling...</span>
+                        }
+                        else
+                        {
+                            <span>Confirm Cancellation</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showRejectProposalModal && selectedRejectRequest != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h5 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <Heroicon Name="@HeroiconName.ExclamationTriangle" Type="@HeroiconType.Outline" class="h-6 w-6 text-rose-500" />
+                        Reject Proposal
+                    </h5>
+                    <button type="button" class="text-slate-400 transition hover:text-slate-500" @onclick="HideRejectProposalModal">
+                        <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Solid" class="h-6 w-6" />
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                @if (!string.IsNullOrEmpty(rejectProposalErrorMessage))
+                {
+                    <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                        @rejectProposalErrorMessage
+                    </div>
+                }
+
+                <p class="mb-4 text-sm text-slate-600">
+                    Are you sure you want to reject the change proposal from
+                    <strong class="text-slate-900">@selectedRejectRequest.SitterFirstName @selectedRejectRequest.SitterLastName</strong>?
+                </p>
+
+                <div class="rounded-xl bg-slate-50 p-4 mb-4">
+                    <p class="text-sm text-slate-600">
+                        <span class="font-medium">Proposed Time:</span>
+                        @selectedRejectRequest.PendingChange?.ProposedStart?.ToLocalTime().ToString("g") - @selectedRejectRequest.PendingChange?.ProposedEnd?.ToLocalTime().ToString("g")
+                    </p>
+                </div>
+
+                <p class="text-sm text-slate-500">
+                    Note: Rejecting will keep the original booking time. You can propose a different time instead.
+                </p>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+                <button type="button"
+                        class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        @onclick="HideRejectProposalModal">
+                    Cancel
+                </button>
+                <button type="button"
+                        class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-rose-500 disabled:opacity-70"
+                        @onclick="HandleRejectProposal"
+                        disabled="@isProcessingProposal">
+                    @if (isProcessingProposal)
+                    {
+                        <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                        <span>Rejecting...</span>
+                    }
+                    else
+                    {
+                        <span>Reject Proposal</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+
+}
+
+<LeaveReviewModal IsVisible="@showReviewModal"
+                  TargetName="@($"{selectedReviewRequest?.SitterFirstName} {selectedReviewRequest?.SitterLastName}")"
+                  IsSitterReview="false"
+                  ReviewModel="@reviewModel"
+                  OnClose="HideReviewModal"
+                  OnSubmit="SubmitReview"
+                  IsSubmitting="@isSubmittingReview" />
+
+<ReportUser @bind-IsVisible="showReportUserModal"
+            ReportedUserId="@reportTargetId"
+            ReportedUserName="@reportTargetName"
+            Source="Booking" />
+
+@code {
+    private List<BookingRequestDTO>? sentRequests;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private bool showProposeChangeModal = false;
+    private BookingRequestDTO? selectedBookingRequest;
+    private UpdateBookingChangeDTO proposeChangeDto = new UpdateBookingChangeDTO();
+    private bool isProcessingRequest = false;
+    private string? modalErrorMessage;
+
+    private bool showCancelModal = false;
+    private BookingRequestDTO? selectedCancelRequest;
+    private CreateCancellationDTO cancelDto = new CreateCancellationDTO();
+    private bool isProcessingCancel = false;
+    private string? cancelErrorMessage;
+
+    private bool isProcessingProposal = false;
+    private long processingChangeId = 0;
+    private bool showRejectProposalModal = false;
+    private BookingRequestDTO? selectedRejectRequest;
+    private string? rejectProposalErrorMessage;
+
+    private bool showReviewModal = false;
+    private BookingRequestDTO? selectedReviewRequest;
+    private CreateReviewDTO reviewModel = new();
+    private bool isSubmittingReview = false;
+
+    private bool showReportUserModal = false;
+    private long reportTargetId;
+    private string reportTargetName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSentRequests();
+    }
+
+    private async Task LoadSentRequests()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true && user.IsInRole("Owner"))
+        {
+            var result = await BookingService.GetOwnerBookingRequestsAsync();
+            if (result.IsSuccess)
+            {
+                sentRequests = result.Data;
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Failed to load sent requests.";
+            }
+        }
+        else
+        {
+            errorMessage = "You must be logged in as an Owner to view sent requests.";
+        }
+        isLoading = false;
+    }
+
+    private void ShowReportModal(long userId, string userName)
+    {
+        reportTargetId = userId;
+        reportTargetName = userName;
+        showReportUserModal = true;
+    }
+
+    private void ShowProposeChangeModal(BookingRequestDTO request)
+    {
+        selectedBookingRequest = request;
+        proposeChangeDto = new UpdateBookingChangeDTO
+        {
+            BookingId = request.BookingId,
+            ProposedStartTime = request.StartTime.ToLocalTime(),
+            ProposedEndTime = request.EndTime.ToLocalTime()
+        };
+        modalErrorMessage = null;
+        showProposeChangeModal = true;
+    }
+
+    private void HideProposeChangeModal()
+    {
+        showProposeChangeModal = false;
+        isProcessingRequest = false;
+        modalErrorMessage = null;
+        selectedBookingRequest = null;
+    }
+
+    private async Task HandleProposeChange()
+    {
+        if (selectedBookingRequest == null) return;
+
+        isProcessingRequest = true;
+        modalErrorMessage = null;
+
+        var result = await BookingService.ProposeBookingChangeAsync(selectedBookingRequest.BookingId, proposeChangeDto);
+
+        if (result.IsSuccess)
+        {
+            HideProposeChangeModal();
+            await LoadSentRequests();
+        }
+        else
+        {
+            modalErrorMessage = result.ErrorMessage ?? "Failed to propose change.";
+        }
+        isProcessingRequest = false;
+    }
+
+    private void ShowCancelModal(BookingRequestDTO request)
+    {
+        selectedCancelRequest = request;
+
+        var timeUntilStart = request.StartTime.ToLocalTime() - DateTime.Now;
+        long policyId;
+
+        if (timeUntilStart.TotalHours <= 0)
+        {
+            policyId = 3; 
+        }
+        else if (timeUntilStart.TotalHours < 48)
+        {
+            policyId = 2; 
+        }
+        else
+        {
+            policyId = 1;
+        }
+
+        cancelDto = new CreateCancellationDTO
+        {
+            BookingId = request.BookingId,
+            PolicyId = policyId,
+            Reason = ""
+        };
+        cancelErrorMessage = null;
+        showCancelModal = true;
+    }
+
+    private void HideCancelModal()
+    {
+        showCancelModal = false;
+        isProcessingCancel = false;
+        cancelErrorMessage = null;
+        selectedCancelRequest = null;
+    }
+
+    private async Task HandleCancelBooking()
+    {
+        if (selectedCancelRequest == null) return;
+
+        isProcessingCancel = true;
+        cancelErrorMessage = null;
+
+        var result = await BookingService.CancelBookingAsync(cancelDto);
+
+        if (result.IsSuccess)
+        {
+            HideCancelModal();
+            await LoadSentRequests();
+        }
+        else
+        {
+            cancelErrorMessage = result.ErrorMessage ?? "Failed to cancel booking.";
+        }
+        isProcessingCancel = false;
+    }
+
+    private (string PolicyName, string Description, int RefundPercentage, string BorderColor, string BgGradient, string IconColor, string RefundColor) GetCancellationPolicyInfo(TimeSpan timeUntilStart)
+    {
+        if (timeUntilStart.TotalHours <= 0)
+        {
+            return (
+                "In Progress Cancellation",
+                "This booking has already started. Cancellation at this stage is not eligible for a refund.",
+                0,
+                "border-slate-300",
+                "from-slate-50 to-slate-100",
+                "text-slate-600",
+                "text-slate-700"
+            );
+        }
+        else if (timeUntilStart.TotalHours < 48)
+        {
+            var hoursRemaining = (int)Math.Ceiling(timeUntilStart.TotalHours);
+            return (
+                "Late Cancellation Policy",
+                $"This booking starts in {hoursRemaining} hours (less than 48 hours). You are eligible for a 50% point refund.",
+                50,
+                "border-amber-300",
+                "from-amber-50 to-amber-100",
+                "text-amber-600",
+                "text-amber-700"
+            );
+        }
+        else
+        {
+            var daysRemaining = (int)Math.Ceiling(timeUntilStart.TotalDays);
+            return (
+                "Standard Cancellation Policy",
+                $"This booking starts in {daysRemaining} days (more than 48 hours). You are eligible for a 100% point refund.",
+                100,
+                "border-emerald-300",
+                "from-emerald-50 to-emerald-100",
+                "text-emerald-600",
+                "text-emerald-700"
+            );
+        }
+    }
+
+    private async Task HandleAcceptProposal(long changeId)
+    {
+        isProcessingProposal = true;
+        processingChangeId = changeId;
+
+        var dto = new BookingChangeAcceptDTO { ChangeId = changeId };
+        var result = await BookingService.AcceptBookingChangeAsync(dto);
+
+        if (result.IsSuccess)
+        {
+            await LoadSentRequests();
+        }
+        else
+        {
+            errorMessage = result.ErrorMessage ?? "Failed to accept proposal.";
+        }
+
+        isProcessingProposal = false;
+        processingChangeId = 0;
+    }
+
+    private void ShowRejectProposalModal(BookingRequestDTO request)
+    {
+        selectedRejectRequest = request;
+        rejectProposalErrorMessage = null;
+        showRejectProposalModal = true;
+    }
+
+    private void HideRejectProposalModal()
+    {
+        showRejectProposalModal = false;
+        selectedRejectRequest = null;
+        rejectProposalErrorMessage = null;
+    }
+
+    private async Task HandleRejectProposal()
+    {
+        if (selectedRejectRequest?.PendingChange == null) return;
+
+        isProcessingProposal = true;
+        rejectProposalErrorMessage = null;
+
+        var dto = new UpdateBookingChangeDTO
+        {
+            BookingId = selectedRejectRequest.BookingId,
+            ProposedStartTime = selectedRejectRequest.StartTime,
+            ProposedEndTime = selectedRejectRequest.EndTime
+        };
+
+        var result = await BookingService.ProposeBookingChangeAsync(selectedRejectRequest.BookingId, dto);
+
+        if (result.IsSuccess)
+        {
+            HideRejectProposalModal();
+            await LoadSentRequests();
+        }
+        else
+        {
+            rejectProposalErrorMessage = result.ErrorMessage ?? "Failed to reject proposal.";
+        }
+
+        isProcessingProposal = false;
+    }
+
+    private void ShowReviewModal(BookingRequestDTO request)
+    {
+        selectedReviewRequest = request;
+        reviewModel = new CreateReviewDTO
+        {
+            BookingId = request.BookingId,
+            SitterRating = 5 
+        };
+        showReviewModal = true;
+    }
+
+    private void HideReviewModal()
+    {
+        showReviewModal = false;
+        selectedReviewRequest = null;
+        isSubmittingReview = false;
+    }
+
+    private async Task SubmitReview()
+    {
+        isSubmittingReview = true;
+        var success = await ReviewService.SubmitReviewAsync(reviewModel);
+        if (success)
+        {
+            HideReviewModal();
+            await LoadSentRequests();
+        }
+        else
+        {
+            HideReviewModal();
+        }
+        isSubmittingReview = false;
+    }
+
+    private async Task HandleCompleteBooking(BookingRequestDTO request)
+    {
+        var result = await BookingService.CompleteBookingAsync(request.BookingId);
+        if (result.IsSuccess)
+        {
+            await LoadSentRequests();
+        }
+        else
+        {
+            errorMessage = result.ErrorMessage ?? "Failed to complete booking.";
+        }
+    }
+}

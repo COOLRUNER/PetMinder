@@ -1,0 +1,25 @@
+.input-text.invalid,
+.input-select.invalid,
+.input-textarea.invalid,
+.modified.invalid {
+    border-color: #f43f5e !important;
+    background-color: #fff1f2 !important;
+}
+
+.input-text.invalid:focus,
+.modified.invalid:focus {
+    --tw-ring-color: rgba(244, 63, 94, 0.2) !important;
+    box-shadow: 0 0 0 3px var(--tw-ring-color) !important;
+}
+
+.validation-message {
+    color: #f43f5e;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.input-text.valid.modified,
+.modified.valid {
+    border-color: #10b981 !important;
+}

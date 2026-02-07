@@ -1,0 +1,28 @@
+@inherits InputBase<DateTime>
+
+<input type="datetime-local"
+       class="@CssClass"
+       @bind="CurrentValue" /> 
+
+@code {
+    protected override string FormatValueAsString(DateTime value)
+    {
+        
+        return value.ToString("yyyy-MM-ddTHH:mm");
+    }
+
+    protected override bool TryParseValueFromString(string? value, out DateTime result, out string? validationErrorMessage)
+    {
+        if (DateTime.TryParse(value, out result))
+        {
+            validationErrorMessage = null;
+            return true;
+        }
+        else
+        {
+            validationErrorMessage = "The {0} field must be a valid date and time.";
+            return false;
+        }
+    }
+
+}

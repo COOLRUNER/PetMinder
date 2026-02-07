@@ -1,0 +1,140 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject PetMinder.Client.Services.NotificationService NotificationService
+@implements IDisposable
+
+<div class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="flex h-screen max-h-screen overflow-hidden">
+
+        <aside class="hidden w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white/95 px-6 py-6 shadow-sm shadow-slate-200 lg:flex">
+            <div class="mb-8">
+                <div class="leading-none">
+                    <div class="text-3xl text-emerald-600 tracking-tight" style="font-family: 'Fredoka', sans-serif;">
+                        PetMinder
+                    </div>
+                </div>
+            </div>
+            <NavMenu />
+        </aside>
+
+        <div class="flex min-w-0 flex-1 flex-col">
+            <header class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 text-sm shadow-sm shadow-slate-200 backdrop-blur">
+                <div class="flex items-center gap-4 lg:hidden">
+                     <button @onclick="ToggleDrawer" class="text-slate-500 hover:text-slate-700">
+                        <Heroicon Name="@HeroiconName.Bars3" Type="@HeroiconType.Outline" class="h-6 w-6" />
+                    </button>
+                    <span class="text-xl text-emerald-600 tracking-tight" style="font-family: 'Fredoka', sans-serif;">
+                        PetMinder
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <AuthorizeView>
+                        <Authorized>
+                            <button @onclick="ToggleNotifications"
+                                    class="relative rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
+                                <Heroicon Name="@HeroiconName.Bell" Type="@HeroiconType.Outline" class="h-6 w-6" />
+                                @if (_notificationCount > 0)
+                                {
+                                    <span class="absolute 0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[0.6rem] font-bold text-white shadow-sm border border-white">
+                                        @(_notificationCount > 99 ? "99+" : _notificationCount)
+                                    </span>
+                                }
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+            </header>
+
+            <main class="min-h-0 flex-1 overflow-y-auto">
+                <article class="content mx-auto max-w-6xl px-4 py-6">
+                    @Body
+                </article>
+            </main>
+        </div>
+    </div>
+</div>
+
+@* Drawer Overlay *@
+<div class="@(_drawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none") fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden" 
+     @onclick="ToggleDrawer"></div>
+
+@* Drawer Panel *@
+<div class="@(_drawerOpen ? "translate-x-0" : "-translate-x-full") fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out lg:hidden">
+     <div class="flex h-full flex-col">
+         <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+             <span class="text-xl text-emerald-600 tracking-tight" style="font-family: 'Fredoka', sans-serif;">
+                PetMinder
+            </span>
+             <button @onclick="ToggleDrawer" class="text-slate-500 hover:text-slate-700">
+                 <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Outline" class="h-6 w-6" />
+             </button>
+         </div>
+         <div class="flex-1 overflow-y-auto px-6 py-6">
+             <NavMenu />
+         </div>
+     </div>
+</div>
+
+<NotificationsPanel IsVisible="_showNotifications" OnClose="CloseNotifications" />
+
+@code {
+    private bool _showNotifications;
+    private int _notificationCount;
+    private bool _isAuthenticated;
+    private bool _drawerOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAuthenticated = authState?.User?.Identity?.IsAuthenticated == true;
+
+        if (_isAuthenticated)
+        {
+            await LoadNotificationCount();
+        }
+
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _drawerOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadNotificationCount()
+    {
+        try
+        {
+            _notificationCount = await NotificationService.GetNotificationCountAsync();
+        }
+        catch
+        {
+            _notificationCount = 0;
+        }
+    }
+
+    private void ToggleNotifications()
+    {
+        _showNotifications = !_showNotifications;
+    }
+
+    private async Task CloseNotifications()
+    {
+        _showNotifications = false;
+        await LoadNotificationCount();
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

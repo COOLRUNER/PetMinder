@@ -1,0 +1,245 @@
+@page "/pets/edit/{PetId:long}"
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@using PetMinder.Client.Components
+@inject PetService PetService
+@inject NavigationManager NavigationManager
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                <Heroicon Name="@HeroiconName.Heart" Type="@HeroiconType.Solid" class="h-8 w-8 text-emerald-500" />
+                @(IsNew ? "Add Pet" : "Edit Pet")
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">Update your pet's details and preferences.</p>
+        </div>
+
+        <EditForm Model="petModel" OnValidSubmit="HandleValidSubmit"
+            class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <DataAnnotationsValidator />
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Name</label>
+                    <InputText
+                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    @bind-Value="petModel.Name" />
+                    <ValidationMessage For="() => petModel.Name" class="text-xs text-rose-500 mt-1" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Breed</label>
+                        <InputText
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="petModel.Breed" />
+                        <ValidationMessage For="() => petModel.Breed" class="text-xs text-rose-500 mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Age</label>
+                        <InputNumber
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="petModel.Age" />
+                        <ValidationMessage For="() => petModel.Age" class="text-xs text-rose-500 mt-1" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Type</label>
+                        <InputSelect
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="petModel.Type">
+                            @foreach (var type in Enum.GetValues<PetMinder.Models.PetType>())
+                            {
+                                <option value="@type">@type</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => petModel.Type" class="text-xs text-rose-500 mt-1" />
+                    </div>
+                    <div>
+                        <label
+                            class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Complexity</label>
+                        <InputSelect
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="petModel.BehaviorComplexity">
+                            @foreach (var complexity in Enum.GetValues<PetMinder.Models.PetBehaviorComplexity>())
+                            {
+                                <option value="@complexity">@complexity</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => petModel.BehaviorComplexity" class="text-xs text-rose-500 mt-1" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Pet Photo</label>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <PhotoUpload CurrentPhotoUrl="@petModel.PhotoUrl" OnPhotoChanged="OnPetPhotoChanged"
+                            UploadType="pet" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Health
+                        Notes</label>
+                    <div class="relative">
+                        <InputTextArea
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 min-h-[80px]"
+                        @bind-Value="petModel.HealthNotes" />
+                        <div class="absolute top-3 right-3 text-slate-400">
+                            <Heroicon Name="@HeroiconName.Heart" Type="@HeroiconType.Outline" class="h-4 w-4" />
+                        </div>
+                    </div>
+                    <ValidationMessage For="() => petModel.HealthNotes" class="text-xs text-rose-500 mt-1" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Behavior
+                        Notes</label>
+                    <div class="relative">
+                        <InputTextArea
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 min-h-[80px]"
+                        @bind-Value="petModel.BehaviorNotes" />
+                        <div class="absolute top-3 right-3 text-slate-400">
+                            <Heroicon Name="@HeroiconName.Sparkles" Type="@HeroiconType.Outline" class="h-4 w-4" />
+                        </div>
+                    </div>
+                    <ValidationMessage For="() => petModel.BehaviorNotes" class="text-xs text-rose-500 mt-1" />
+                </div>
+            </div>
+
+            <div class="mt-8 flex flex-wrap gap-3">
+                <button
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                    type="submit">
+                    <Heroicon Name="@HeroiconName.Check" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                    @(IsNew ? "Add Pet" : "Save Changes")
+                </button>
+
+                <button
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                    type="button" @onclick="GoBack">
+                    Cancel
+                </button>
+
+                @if (!IsNew)
+                {
+                    <button
+                        class="ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-rose-50 border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 shadow-sm transition-colors hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                        type="button" @onclick="DeletePet">
+                        <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                        Delete Pet
+                    </button>
+                }
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                @message
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public long PetId { get; set; }
+
+    private string? message;
+    private bool IsNew => PetId == 0;
+    private CreatePetDTO petModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsNew)
+        {
+            var pets = await PetService.GetPetsAsync();
+            var pet = pets?.FirstOrDefault(p => p.PetId == PetId);
+            if (pet != null)
+            {
+                petModel = new CreatePetDTO
+                    {
+                        Name = pet.Name,
+                        Breed = pet.Breed,
+                        Age = pet.Age,
+                        Type = pet.Type,
+                        BehaviorComplexity = pet.BehaviorComplexity,
+                        HealthNotes = pet.HealthNotes,
+                        BehaviorNotes = pet.BehaviorNotes,
+                        PhotoUrl = pet.PhotoUrl
+                    };
+            }
+            else
+            {
+                message = "Pet not found.";
+            }
+        }
+    }
+
+    private void OnPetPhotoChanged(string? photoUrl)
+    {
+        petModel.PhotoUrl = photoUrl;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (IsNew)
+        {
+            var result = await PetService.AddPetAsync(petModel);
+            if (result != null)
+            {
+                NavigationManager.NavigateTo("/pets");
+            }
+            else
+            {
+                message = "Failed to add pet.";
+            }
+        }
+        else
+        {
+            var updateDto = new UpdatePetDTO
+                {
+                    PetId = PetId,
+                    Name = petModel.Name,
+                    Breed = petModel.Breed,
+                    Age = petModel.Age,
+                    Type = petModel.Type,
+                    BehaviorComplexity = petModel.BehaviorComplexity,
+                    HealthNotes = petModel.HealthNotes,
+                    BehaviorNotes = petModel.BehaviorNotes,
+                    PhotoUrl = petModel.PhotoUrl
+                };
+            var result = await PetService.UpdatePetAsync(updateDto);
+            if (result != null)
+            {
+                NavigationManager.NavigateTo("/pets");
+            }
+            else
+            {
+                message = "Failed to update pet.";
+            }
+        }
+    }
+
+    private async Task DeletePet()
+    {
+        var success = await PetService.DeletePetAsync(PetId);
+        if (success)
+        {
+            NavigationManager.NavigateTo("/pets");
+        }
+        else
+        {
+            message = "Failed to delete pet.";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/pets");
+    }
+}

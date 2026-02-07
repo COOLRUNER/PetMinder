@@ -1,0 +1,108 @@
+@page "/verify-email"
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@using System.Net.Http.Json
+
+<PageTitle>Verifying Email</PageTitle>
+
+<div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center">
+
+        <h1 class="text-2xl font-bold text-slate-900 mb-6">Email Verification</h1>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-8">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mb-4"></div>
+                <p class="text-slate-500 text-sm">Verifying your token... Please wait.</p>
+            </div>
+        }
+        else if (isSuccess)
+        {
+            <div class="mb-6 rounded-2xl bg-emerald-50 p-6">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 mb-3">
+                    <svg class="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-emerald-900">Success!</h3>
+                <p class="mt-2 text-sm text-emerald-700">
+                    Your email has been verified. You have been awarded 50 points.
+                </p>
+            </div>
+            <button
+                class="w-full inline-flex justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors"
+            @onclick="GoToProfile">
+                Go to Profile
+            </button>
+        }
+        else
+        {
+            <div class="mb-6 rounded-2xl bg-rose-50 p-6">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 mb-3">
+                    <svg class="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-rose-900">Verification Failed</h3>
+                <p class="mt-2 text-sm text-rose-700">
+                    @errorMessage
+                </p>
+            </div>
+            <button
+                class="w-full inline-flex justify-center rounded-xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors"
+            @onclick="GoToProfile">
+                Return to Profile
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? token { get; set; } 
+
+    private bool isLoading = true;
+    private bool isSuccess = false;
+    private string errorMessage = "The token is invalid, expired, or has already been used.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(token) || !Guid.TryParse(token, out var guidToken))
+        {
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            isSuccess = await AuthService.VerifyEmailTokenAsync(guidToken);
+
+            if (isSuccess)
+            {
+                if (AuthService.AuthStateProvider is JwtAuthenticationStateProvider jwtProvider)
+                {
+                    await jwtProvider.GetAuthenticationStateAsync();
+                    jwtProvider.NotifyUserAuthentication(await AuthService.GetTokenAsync());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred during verification: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async void GoToProfile()
+    {
+        await Task.Yield();
+        NavigationManager.NavigateTo("/profile");
+    }
+}

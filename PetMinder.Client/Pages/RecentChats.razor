@@ -1,0 +1,103 @@
+@page "/recent-chats"
+
+@inject PetMinder.Client.Services.ConversationService ConversationService
+@inject NavigationManager Navigation
+@using PetMinder.Shared.DTO
+
+<PageTitle>Recent Chats</PageTitle>
+
+<div class="min-h-screen bg-slate-50 text-slate-900">
+    <section class="mx-auto max-w-5xl px-4 py-12 md:py-16">
+
+        <div class="mb-10">
+            <h1 class="text-3xl font-bold tracking-tight">Recent Chats</h1>
+            <p class="mt-2 text-sm text-slate-600">View and jump back into your latest conversations.</p>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm">Loading conversations...</p>
+            </div>
+        }
+        else if (conversations.Count == 0)
+        {
+            <div class="flex flex-col items-center rounded-3xl border border-dashed border-slate-300 bg-slate-100 px-4 py-20 text-center">
+                <div class="mb-4 rounded-full bg-slate-200 p-4 text-slate-400">
+                    <Heroicon Name="@HeroiconName.ChatBubbleLeftRight" Type="@HeroiconType.Outline" class="h-10 w-10" />
+                </div>
+                <h3 class="text-lg font-semibold">No recent conversations</h3>
+                <p class="text-sm text-slate-500">
+                    When you start messaging other users, your conversations will appear here.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <ul class="divide-y divide-slate-100">
+                    @foreach (var convo in conversations)
+                    {
+                        var chatUrl = $"/chat/{convo.ConversationId}";
+                        <li class="group cursor-pointer hover:bg-slate-50 transition-colors"
+                            @onclick="() => Navigation.NavigateTo(chatUrl)">
+                            <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-3 mb-1">
+                                        <h3 class="text-base font-semibold text-slate-900 truncate">
+                                            @string.Join(", ", convo.Participants?.Select(p => p.UserName) ?? new List<string>())
+                                        </h3>
+                                        @if (convo.LastMessage == null)
+                                        {
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">New</span>
+                                        }
+                                    </div>
+
+                                    <div class="mb-2 flex items-center gap-2 text-xs text-slate-500">
+                                        <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                                        <span>Started @convo.CreatedAt.ToLocalTime().ToString("g")</span>
+                                    </div>
+
+                                    <div class="text-sm text-slate-600 line-clamp-1 flex items-center gap-1.5">
+                                        @if (convo.LastMessage != null)
+                                        {
+                                            <Heroicon Name="@HeroiconName.ChatBubbleLeftEllipsis" Type="@HeroiconType.Mini" class="h-4 w-4 text-slate-400" />
+                                            <span class="font-medium text-slate-900">Last message:</span>
+                                            <span class="ml-1">"@convo.LastMessage.Content"</span>
+                                            <span class="text-xs text-slate-400">— @convo.LastMessage.SenderName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="italic text-slate-400">No messages yet.</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="shrink-0">
+                                    <button type="button"
+                                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500 sm:w-auto">
+                                        Open Chat
+                                        <Heroicon Name="@HeroiconName.ArrowRight" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<ConversationDTO> conversations = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        conversations = await ConversationService.GetUserConversationsAsync();
+        isLoading = false;
+    }
+}

@@ -1,0 +1,194 @@
+@page "/register"
+@using PetMinder.Shared.DTO
+@inject AuthService AuthService
+@inject IJSRuntime JsRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Register • PetMinder</PageTitle>
+
+<div class="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
+    <div class="grid w-full max-w-5xl gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <section
+            class="relative hidden overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-sky-50 to-emerald-100 p-8 shadow-md shadow-emerald-100 md:flex md:flex-col">
+            <div
+                class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_60%),_radial-gradient(circle_at_bottom,_rgba(56,189,248,0.15),_transparent_55%)]">
+            </div>
+            <div class="relative flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                <div class="flex h-8 w-8 items-center justify-center rounded-2xl bg-white/80 text-lg shadow-sm">
+                    🐾
+                </div>
+                <span>Create your PetMinder account</span>
+            </div>
+            <div class="relative mt-8 space-y-4">
+                <h1 class="text-balance text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+                    Join a community of
+                    <span class="block text-emerald-700">trusted sitters & pet lovers.</span>
+                </h1>
+                <p class="max-w-md text-sm text-slate-600">
+                    Build your profile, verify your details, and start connecting with local pet parents looking for
+                    reliable care — from walks to overnight stays.
+                </p>
+            </div>
+            <div class="relative mt-10 grid grid-cols-2 gap-3 text-[0.7rem] text-slate-700">
+                <div class="space-y-1 rounded-2xl bg-white/85 p-3 ring-1 ring-emerald-100">
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[0.7rem] font-semibold text-white">✓</span>
+                        <span class="font-semibold">Profile verification</span>
+                    </div>
+                    <p>Earn trust points by completing verification steps, from email to address checks.</p>
+                </div>
+                <div class="space-y-1 rounded-2xl bg-white/85 p-3 ring-1 ring-sky-100">
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-400 text-[0.7rem] font-semibold text-white">★</span>
+                        <span class="font-semibold">Stand out to pet parents</span>
+                    </div>
+                    <p>Showcase your experience, preferences, and qualifications at a glance.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="flex items-center justify-center">
+            <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-md shadow-slate-200">
+                <div class="mb-6 space-y-1">
+                    <h2 class="text-xl font-semibold tracking-tight text-slate-900">Create your account</h2>
+                    <p class="text-xs text-slate-500">Already have one? <a href="login"
+                            class="font-medium text-emerald-600 hover:text-emerald-500">Log in</a>.</p>
+                </div>
+
+                <EditForm Model="registerForm" OnValidSubmit="HandleRegisterAsync" class="space-y-4">
+                    <DataAnnotationsValidator />
+
+                    <div class="space-y-1 text-sm">
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Email</label>
+                        <InputText
+                            class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="registerForm.Email" />
+                        <ValidationMessage For="() => registerForm.Email" />
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="space-y-1 text-sm">
+                            <label
+                                class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Password</label>
+                            <InputText
+                                class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            @bind-Value="registerForm.Password" type="password" />
+                            <ValidationMessage For="() => registerForm.Password" />
+                        </div>
+                        <div class="space-y-1 text-sm">
+                            <label
+                                class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Confirm Password</label>
+                            <InputText
+                                class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            @bind-Value="registerForm.ConfirmPassword" type="password" />
+                            <ValidationMessage For="() => registerForm.ConfirmPassword" />
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="space-y-1 text-sm">
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">First
+                                name</label>
+                            <InputText
+                                class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            @bind-Value="registerForm.FirstName" />
+                            <ValidationMessage For="() => registerForm.FirstName" />
+                        </div>
+                        <div class="space-y-1 text-sm">
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Last
+                                name</label>
+                            <InputText
+                                class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            @bind-Value="registerForm.LastName" />
+                            <ValidationMessage For="() => registerForm.LastName" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 text-sm">
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Phone</label>
+                        <InputText
+                            class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="registerForm.Phone" />
+                        <ValidationMessage For="() => registerForm.Phone" />
+                    </div>
+
+                    <div class="space-y-1 text-sm">
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Referral Code
+                            (Optional)</label>
+                        <InputText
+                            class="input-text w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        @bind-Value="registerForm.ReferralCode" />
+                        <ValidationMessage For="() => registerForm.ReferralCode" />
+                    </div>
+
+                    <button
+                        class="inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-300 transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+                        type="submit">
+                        Create account
+                    </button>
+                </EditForm>
+
+                @if (!string.IsNullOrEmpty(registrationStatusMessage))
+                {
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">
+                        @registrationStatusMessage
+                    </div>
+                }
+
+                <p class="mt-6 text-[0.7rem] text-slate-500">
+                    We use a light device fingerprint to help protect your account from unusual activity.
+                </p>
+            </div>
+        </section>
+    </div>
+</div>
+
+@code {
+    private RegisterDTO registerForm = new();
+    private string? registrationStatusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var fingerprint = await JsRuntime.InvokeAsync<string>("getDeviceFingerprint");
+            registerForm.Fingerprint = fingerprint;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Could not get device fingerprint: {ex.Message}");
+            registerForm.Fingerprint = null;
+        }
+    }
+
+    private async Task HandleRegisterAsync()
+    {
+        var isSuccessful = await AuthService.RegisterAsync(registerForm);
+        if (isSuccessful)
+        {
+            var loginDto = new LoginDTO
+                {
+                    Email = registerForm.Email,
+                    Password = registerForm.Password
+                };
+
+            var loginResult = await AuthService.LoginAsync(loginDto);
+
+            if (loginResult != null && !string.IsNullOrEmpty(loginResult.Token))
+            {
+                Navigation.NavigateTo("/profile");
+            }
+            else
+            {
+                registrationStatusMessage = "Registration successful! Please log in.";
+                Navigation.NavigateTo("/login");
+            }
+        }
+        else
+        {
+            registrationStatusMessage = "Registration failed. Please try again.";
+        }
+    }
+}

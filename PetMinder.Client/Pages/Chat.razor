@@ -1,0 +1,153 @@
+@page "/chat/{conversationId:long}"
+@inject PetMinder.Client.Services.ChatService ChatService
+@inject PetMinder.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-2xl mx-auto h-[600px] flex flex-col">
+
+        <button @onclick="GoBack" class="mb-4 flex items-center text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors w-fit">
+            <Heroicon Name="@HeroiconName.ArrowLeft" Type="@HeroiconType.Outline" class="mr-2 h-4 w-4" />
+            Back to Chats
+        </button>
+
+        <div class="mb-4 flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <Heroicon Name="@HeroiconName.ChatBubbleLeftRight" Type="@HeroiconType.Solid" class="h-5 w-5" />
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">Chat</h1>
+        </div>
+
+        <button @onclick="OpenReportModal" class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+            <Heroicon Name="@HeroiconName.Flag" Type="@HeroiconType.Mini" class="h-3 w-3" />
+            Report User
+        </button>
+
+        <div class="flex-1 flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+                @foreach (var message in messages)
+                {
+                    bool isMe = userProfile != null && message.SenderId == userProfile.UserId;
+                    <div class="flex @(isMe ? "justify-end" : "justify-start")">
+                        <div class="max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm @(isMe ? "bg-emerald-500 text-white rounded-tr-none" : "bg-white border border-slate-200 text-slate-800 rounded-tl-none")">
+                            @if (!isMe)
+                            {
+                                <div class="text-xs font-bold text-slate-500 mb-1">@message.SenderName</div>
+                            }
+                            <div class="leading-relaxed">@message.Content</div>
+                            <div class="mt-1 text-xs opacity-70 @(isMe ? "text-emerald-100" : "text-slate-400") text-right">
+                                @message.SentAt.ToShortTimeString()
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="p-4 bg-white border-t border-slate-100">
+                <div class="flex items-center gap-3">
+                    <input @bind="newMessage"
+                           @bind:event="oninput"
+                           @onkeydown="HandleKeyDown"
+                           placeholder="Type your message..."
+                           class="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-200" />
+                    <button @onclick="SendMessage"
+                            disabled="@string.IsNullOrWhiteSpace(newMessage)"
+                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                        <span>Send</span>
+                        <Heroicon Name="@HeroiconName.PaperAirplane" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ReportUser @bind-IsVisible="showReportUserModal"
+                 ReportedUserId="@targetUserId"
+                 ReportedUserName="Chat Partner"
+                 Source="Chat" />
+
+@code {
+    [Parameter]
+    public long conversationId { get; set; }
+    private List<PetMinder.Shared.DTO.MessageDTO> messages = new();
+    private string newMessage = string.Empty;
+    private PetMinder.Shared.DTO.UserProfileDTO? userProfile;
+    private bool showReportUserModal = false;
+    private long targetUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userProfile = await AuthService.GetUserProfileAsync();
+        ChatService.OnMessageReceived += MessageReceived;
+        await ChatService.StartAsync();
+        await ChatService.JoinConversation(conversationId.ToString());
+        messages = await ChatService.GetMessagesForConversation(conversationId);
+        
+        if(messages.Any() && userProfile != null) 
+        {
+            var otherMsg = messages.FirstOrDefault(m => m.SenderId != userProfile.UserId);
+            if(otherMsg != null) targetUserId = otherMsg.SenderId;
+        }
+    }
+
+    private void MessageReceived(PetMinder.Shared.DTO.MessageDTO msg)
+    {
+        if (msg.ConversationId == conversationId)
+        {
+            messages.Add(msg);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(newMessage) && userProfile != null)
+        {
+            var msg = new PetMinder.Shared.DTO.MessageDTO
+            {
+                ConversationId = conversationId,
+                Content = newMessage,
+                SentAt = DateTime.Now,
+                SenderId = userProfile.UserId,
+                SenderName = $"{userProfile.FirstName} {userProfile.LastName}"
+            };
+            await ChatService.SendMessageToConversation(msg);
+            newMessage = string.Empty;
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+    
+    private void OpenReportModal()
+    {
+        if (targetUserId == 0) 
+        {
+            if(messages.Any() && userProfile != null) 
+            {
+                var otherMsg = messages.FirstOrDefault(m => m.SenderId != userProfile.UserId);
+                if(otherMsg != null) targetUserId = otherMsg.SenderId;
+            }
+        }
+
+        if (targetUserId != 0)
+        {
+            showReportUserModal = true;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/recent-chats");
+    }
+
+    public void Dispose()
+    {
+        ChatService.OnMessageReceived -= MessageReceived;
+    }
+}

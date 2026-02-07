@@ -1,0 +1,200 @@
+@page "/admin/points"
+@layout AdminLayout
+@using Microsoft.AspNetCore.Authorization
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@inject AdminService AdminService
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Admin • Points & Disputes</PageTitle>
+
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-slate-900">Points System</h1>
+    <p class="mt-1 text-slate-500">Manage global point values and resolve transaction disputes.</p>
+</div>
+
+<div class="flex gap-4 border-b border-slate-200 mb-8">
+    <button class="px-4 py-2 text-sm font-bold border-b-2 transition-colors @(activeTab == "policies" ? "border-emerald-500 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-700")"
+            @onclick='() => activeTab = "policies"'>
+        Configuration Policies
+    </button>
+    <button class="px-4 py-2 text-sm font-bold border-b-2 transition-colors @(activeTab == "refunds" ? "border-emerald-500 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-700")"
+            @onclick='() => activeTab = "refunds"'>
+        Dispute Resolution
+    </button>
+</div>
+
+@if (activeTab == "policies")
+{
+    <div class="space-y-6 max-w-3xl">
+        @if (isLoadingPolicies)
+        {
+            <div class="text-center py-12 text-slate-400">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-transparent mx-auto mb-2"></div>
+                Loading policies...
+            </div>
+        }
+        else
+        {
+            @foreach (var policy in policies.Where(p => p.ServiceType == "Pet"))
+            {
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 transition hover:shadow-md">
+                    
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+                                @if(policy.ServiceType == "Pet") 
+                                { 
+                                    <Heroicon Name="@HeroiconName.Heart" Type="@HeroiconType.Solid" class="h-8 w-8" /> 
+                                }
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-xl text-slate-900">@policy.ServiceType Policy</h3>
+                                <span class="text-xs font-mono font-medium text-slate-400">ID: @policy.PolicyId</span>
+                            </div>
+                        </div>
+                        
+                        <button @onclick="() => SavePolicy(policy)" class="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+                            Save Changes
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Points Per Hour (Base)</label>
+                            <input type="number" 
+                                   @bind="policy.PointsPerStay" 
+                                   class="w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-lg font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Min. Spendable</label>
+                            <input type="number" 
+                                   @bind="policy.MinSpendable" 
+                                   class="w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-lg font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Expiry (Days)</label>
+                            <input type="number" 
+                                   @bind="policy.ExpiryDays" 
+                                   class="w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-lg font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" />
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@if (activeTab == "refunds")
+{
+    <div class="max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-rose-50 px-8 py-6 border-b border-rose-100">
+            <h3 class="text-xl font-bold text-rose-900 flex items-center gap-2">
+                <Heroicon Name="@HeroiconName.ArrowPathRoundedSquare" Type="@HeroiconType.Mini" class="h-6 w-6 text-rose-600" />
+                Process Refund / Adjustment
+            </h3>
+            <p class="text-sm text-rose-700 mt-1 opacity-90">
+                This will deduct points from the Receiver (e.g., Sitter) and return them to the Sender (e.g., Owner).
+            </p>
+        </div>
+        
+        <EditForm Model="refundModel" OnValidSubmit="HandleRefund" class="p-8 space-y-6">
+            <DataAnnotationsValidator />
+            
+            @if (!string.IsNullOrEmpty(refundMessage))
+            {
+                <div class="p-4 rounded-xl text-sm font-bold flex items-center gap-2 @(isRefundSuccess ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")">
+                    @if(isRefundSuccess) { <Heroicon Name="@HeroiconName.CheckCircle" Type="@HeroiconType.Solid" class="h-5 w-5" /> }
+                    else { <Heroicon Name="@HeroiconName.ExclamationCircle" Type="@HeroiconType.Solid" class="h-5 w-5" /> }
+                    @refundMessage
+                </div>
+            }
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Original Transaction ID</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 font-bold">#</div>
+                    <InputNumber @bind-Value="refundModel.OriginalTransactionId" class="w-full rounded-xl border-slate-300 pl-8 px-4 py-3 text-base font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-mono" placeholder="1024" />
+                </div>
+                <ValidationMessage For="@(() => refundModel.OriginalTransactionId)" class="text-xs text-rose-500 mt-1" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Refund Amount</label>
+                <InputNumber @bind-Value="refundModel.RefundAmount" class="w-full rounded-xl border-slate-300 px-4 py-3 text-base font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10" />
+                <ValidationMessage For="@(() => refundModel.RefundAmount)" class="text-xs text-rose-500 mt-1" />
+                <p class="text-xs text-slate-400 mt-1 font-medium">Cannot exceed original transaction value.</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Reason for Adjustment</label>
+                <InputTextArea @bind-Value="refundModel.Reason" rows="3" class="w-full rounded-xl border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10" placeholder="e.g. Sitter cancelled last minute, refunding booking fee." />
+                <ValidationMessage For="@(() => refundModel.Reason)" class="text-xs text-rose-500 mt-1" />
+            </div>
+
+            <div class="pt-2">
+                <button type="submit" disabled="@isProcessingRefund" class="w-full bg-rose-600 text-white px-6 py-4 rounded-xl text-base font-bold hover:bg-rose-700 transition shadow-lg shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    @if (isProcessingRefund) { <span>Processing...</span> } else { <span>Execute Refund</span> }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    private string activeTab = "policies";
+    
+    private List<PointPolicyDTO> policies = new();
+    private bool isLoadingPolicies = true;
+
+    private AdminTransactionAdjustmentDTO refundModel = new();
+    private bool isProcessingRefund = false;
+    private string? refundMessage;
+    private bool isRefundSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPolicies();
+    }
+
+    private async Task LoadPolicies()
+    {
+        isLoadingPolicies = true;
+        policies = await AdminService.GetPointPoliciesAsync();
+        isLoadingPolicies = false;
+    }
+
+    private async Task SavePolicy(PointPolicyDTO policy)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to update this policy? It will affect all future transactions.");
+        if (!confirm) return;
+
+        var success = await AdminService.UpdatePointPolicyAsync(policy);
+        if (success) await JS.InvokeVoidAsync("alert", "Policy updated successfully.");
+        else await JS.InvokeVoidAsync("alert", "Failed to update policy.");
+    }
+
+    private async Task HandleRefund()
+    {
+        if (refundModel.OriginalTransactionId <= 0 || refundModel.RefundAmount <= 0) return;
+
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Refund {refundModel.RefundAmount} points for Transaction #{refundModel.OriginalTransactionId}?");
+        if (!confirm) return;
+
+        isProcessingRefund = true;
+        refundMessage = null;
+
+        var result = await AdminService.ProcessRefundAsync(refundModel);
+        
+        isRefundSuccess = result.Success;
+        refundMessage = result.Message;
+        
+        if (result.Success)
+        {
+            refundModel = new(); 
+        }
+
+        isProcessingRefund = false;
+    }
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetMinder.Client</title>
+    <base href="/" />
+    <!-- TailwindCSS via CDN for now; can be moved to build pipeline later -->
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/validation.css" />
+    <link href="PetMinder.Client.styles.css" rel="stylesheet" />
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div id="app">
+        <div
+            class="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-500/5 via-slate-900 to-sky-500/10">
+            <div class="relative flex flex-col items-center">
+                <div class="absolute inset-0 -z-10 bg-emerald-500/10 blur-3xl"
+                    style="mask-image: radial-gradient(circle at center, black, transparent);"></div>
+                <svg class="h-24 w-24 animate-spin-slow text-emerald-400" viewBox="0 0 100 100">
+                    <circle class="text-slate-700" cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8"
+                        fill="none" />
+                    <circle class="text-emerald-400" cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8"
+                        stroke-linecap="round" stroke-dasharray="80 200" fill="none" />
+                </svg>
+                <p class="mt-4 text-sm font-medium text-slate-300">Loading PetMinder...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui"
+        class="fixed inset-x-0 bottom-0 z-50 hidden bg-amber-100/95 px-4 py-3 text-sm text-amber-900 shadow-lg shadow-amber-900/30">
+        <div class="mx-auto flex max-w-4xl items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span
+                    class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/90 text-xs font-semibold text-amber-50">!</span>
+                <span class="sr-only">Error</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-medium">
+                <span>An unexpected error has occurred.</span>
+                <button type="button"
+                    class="reload rounded-full bg-amber-900/10 px-3 py-1 text-amber-900 ring-1 ring-amber-900/20 transition hover:bg-amber-900/20">
+                    Reload
+                </button>
+                <button type="button"
+                    class="dismiss inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-900/10 text-amber-900 ring-1 ring-amber-900/20 transition hover:bg-amber-900/20">
+                    <span class="sr-only">Dismiss error</span>
+                    &#x2715;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@thumbmarkjs/thumbmarkjs/dist/thumbmark.umd.js"></script>
+    <script src="js/app.js"></script>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

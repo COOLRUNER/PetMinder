@@ -1,0 +1,136 @@
+@page "/pets"
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@inject PetService PetService
+@inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+
+<div class="min-h-[calc(100vh-4rem)] bg-slate-50 text-slate-900">
+    <section class="max-w-5xl mx-auto px-4 py-8">
+        <header class="mb-4 flex items-center justify-between gap-2">
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">My pets</h1>
+            <button class="inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2" @onclick="AddPet">
+                <Heroicon Name="@HeroiconName.Plus" Type="@HeroiconType.Solid" class="h-5 w-5" />
+                Add a pet
+            </button>
+        </header>
+
+        @if (pets == null)
+        {
+                <div class="flex flex-col items-center py-20 text-slate-500">
+                    <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                    <p class="mt-3 text-sm">Loading your pets…</p>
+                </div>
+        }
+        else if (pets.Count == 0)
+        {
+                <div class="mt-4 flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-700 shadow-sm">
+                    <div class="mb-3 rounded-full bg-slate-50 p-4 text-slate-400">
+                        <Heroicon Name="@HeroiconName.Heart" Type="@HeroiconType.Outline" class="h-10 w-10" />
+                    </div>
+                    <p>You haven’t added any pets yet.</p>
+                    <button class="mt-4 inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600" @onclick="AddPet">
+                        Add your first pet
+                    </button>
+                </div>
+        }
+        else
+        {
+                <div class="mt-4 space-y-4">
+                @foreach (var pet in pets)
+                {
+                            <article class="flex flex-col md:flex-row overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                                <div class="h-48 w-full md:w-48 md:h-auto bg-slate-100 shrink-0 flex items-center justify-center">
+                            @if (!string.IsNullOrEmpty(pet.PhotoUrl))
+                            {
+                                            <img src="@GetPhotoUrl(pet.PhotoUrl)" alt="Pet photo" class="h-full w-full object-cover" />
+                            }
+                            else
+                            {
+                                            <Heroicon Name="@HeroiconName.Photo" Type="@HeroiconType.Solid" class="h-12 w-12 text-slate-300" />
+                            }
+                                </div>
+                                <div class="flex flex-1 flex-col p-6">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div>
+                                            <h2 class="text-lg font-semibold text-slate-900">@pet.Name</h2>
+                                            <div class="text-sm text-slate-500">@pet.Breed • @pet.Age yrs</div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                             <button class="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:ring-2 focus:ring-slate-500" @onclick="() => EditPet(pet.PetId)">
+                                                <Heroicon Name="@HeroiconName.PencilSquare" Type="@HeroiconType.Solid" class="h-3 w-3" />
+                                                Edit
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 space-y-2">
+                                @if (!string.IsNullOrWhiteSpace(pet.HealthNotes))
+                                {
+                                                <div class="flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-xl">
+                                                    <span class="font-bold shrink-0">Health:</span> 
+                                                    <span>@pet.HealthNotes</span>
+                                                </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(pet.BehaviorNotes))
+                                {
+                                                <div class="flex items-start gap-2 text-sm text-sky-700 bg-sky-50 px-3 py-2 rounded-xl">
+                                                    <span class="font-bold shrink-0">Behavior:</span> 
+                                                    <span>@pet.BehaviorNotes</span>
+                                                </div>
+                                }
+                                    </div>
+
+                                    <div class="mt-auto pt-4 flex justify-end">
+                                        <button class="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-700 hover:underline" @onclick="() => DeletePet(pet.PetId)">
+                                            <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Solid" class="h-3 w-3" />
+                                            Remove pet
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                }
+                </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<PetDTO>? pets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        pets = await PetService.GetPetsAsync();
+    }
+
+    private async Task DeletePet(long petId)
+    {
+        var wasDeleted = await PetService.DeletePetAsync(petId);
+        if (wasDeleted && pets != null)
+        {
+            pets = pets.Where(pet => pet.PetId != petId).ToList();
+        }
+    }
+
+    private void EditPet(long petId)
+    {
+        NavigationManager.NavigateTo($"/pets/edit/{petId}");
+    }
+
+    private void AddPet()
+    {
+        NavigationManager.NavigateTo("/pets/edit/0");
+    }
+
+    private string GetPhotoUrl(string? photoUrl)
+    {
+        if (string.IsNullOrEmpty(photoUrl))
+            return string.Empty;
+
+        if (photoUrl.StartsWith("http"))
+            return photoUrl;
+
+        var backendUrl = Configuration["BackendUrl"] ?? "https://localhost:7185";
+        return $"{backendUrl.TrimEnd('/')}{photoUrl}";
+    }
+}

@@ -1,0 +1,65 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>PetMinder</PageTitle>
+
+<div class="min-h-[calc(100vh-4rem)] bg-slate-50 text-slate-900">
+    <section class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-12 px-4 py-16 md:flex-row md:py-24">
+        <div class="flex-1 space-y-8">
+            <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                Trusted pet sitters, anytime
+            </div>
+            <div class="space-y-4">
+                <h1 class="text-balance text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+                    Peace of mind for you.
+                    <span class="block bg-gradient-to-r from-emerald-500 via-sky-500 to-emerald-400 bg-clip-text text-transparent">
+                        A holiday for your pet.
+                    </span>
+                </h1>
+                <p class="max-w-xl text-balance text-sm text-slate-600 sm:text-base">
+                    PetMinder connects loving pet owners with verified local sitters. Book walks, overnights, and check-ins
+                    with real-time updates and secure, cashless payments.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="register" class="inline-flex items-center justify-center rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition hover:bg-emerald-400">
+                    Register
+                    <Heroicon Name="@HeroiconName.UserPlus" Type="@HeroiconType.Solid" class="ml-2 w-4 h-4" />
+                </a>
+                <a href="login" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+                    Log in
+                </a>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                        <Heroicon Name="@HeroiconName.ShieldCheck" Type="@HeroiconType.Solid" class="w-4 h-4" />
+                    </div>
+                    <span>Verified profiles & reviews</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                        <Heroicon Name="@HeroiconName.ChatBubbleLeftRight" Type="@HeroiconType.Solid" class="w-4 h-4" />
+                    </div>
+                    <span>Real-time chat & booking updates</span>
+                </div>
+            </div>
+        </div>
+
+        
+    </section>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            NavigationManager.NavigateTo("/findsitters");
+        }
+    }
+}

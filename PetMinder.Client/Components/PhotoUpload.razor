@@ -1,0 +1,151 @@
+@using Microsoft.AspNetCore.Components.Forms
+@inject FileUploadService FileUploadService
+@inject IConfiguration Configuration
+
+<div class="photo-upload-container flex flex-col items-center justify-center">
+    @if (!string.IsNullOrEmpty(CurrentPhotoUrl))
+    {
+        <div class="current-photo mb-3 flex flex-col items-center">
+            <div class="relative mb-3">
+                <img src="@GetPhotoUrl(CurrentPhotoUrl)" alt="Current photo" class="h-32 w-32 rounded-full object-cover ring-4 ring-white shadow-md bg-slate-100" />
+            </div>
+
+            <button type="button" 
+                    class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 transition-colors" 
+                    @onclick="RemovePhoto">
+                <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Solid" class="h-4 w-4" />
+                Remove Photo
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="file-upload mb-3 text-center">
+            <InputFile OnChange="HandleFileSelected" accept="image/*" id="@InputId" class="hidden" />
+
+            <label for="@InputId" 
+                   class="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 active:scale-95">
+                <Heroicon Name="@HeroiconName.Camera" Type="@HeroiconType.Solid" class="h-5 w-5" />
+                <span>@Placeholder</span>
+            </label>
+
+            @if (IsUploading)
+            {
+                <div class="mt-3 flex items-center justify-center gap-2 text-sm text-slate-500">
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                    <span>Uploading...</span>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="mt-2 text-xs font-medium text-rose-600">
+                    @ErrorMessage
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(SuccessMessage))
+            {
+                <div class="mt-2 text-xs font-medium text-emerald-600">
+                    @SuccessMessage
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? CurrentPhotoUrl { get; set; }
+    [Parameter] public EventCallback<string?> OnPhotoChanged { get; set; }
+    [Parameter] public string UploadType { get; set; } = "profile";
+    [Parameter] public string Placeholder { get; set; } = "Upload Photo";
+
+    private string InputId = $"file-upload-{Guid.NewGuid()}";
+
+    private bool IsUploading = false;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        IsUploading = true;
+
+        try
+        {
+            var file = e.File;
+            
+            if (file.Size > 5 * 1024 * 1024) 
+            {
+                ErrorMessage = "File size must be less than 5MB.";
+                return;
+            }
+
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+            if (!allowedTypes.Contains(file.ContentType))
+            {
+                ErrorMessage = "Only JPG, PNG, GIF, and WEBP images are allowed.";
+                return;
+            }
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            
+            string? uploadedUrl = null;
+            if (UploadType == "profile")
+            {
+                uploadedUrl = await FileUploadService.UploadProfilePhotoAsync(stream, file.Name);
+            }
+            else if (UploadType == "pet")
+            {
+                uploadedUrl = await FileUploadService.UploadPetPhotoAsync(stream, file.Name);
+            }
+
+            if (!string.IsNullOrEmpty(uploadedUrl))
+            {
+                if (!string.IsNullOrEmpty(CurrentPhotoUrl))
+                {
+                    await FileUploadService.DeletePhotoAsync(CurrentPhotoUrl);
+                }
+
+                CurrentPhotoUrl = uploadedUrl;
+                await OnPhotoChanged.InvokeAsync(CurrentPhotoUrl);
+                SuccessMessage = "Photo uploaded successfully!";
+            }
+            else
+            {
+                ErrorMessage = "Failed to upload photo. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error uploading photo: {ex.Message}";
+        }
+        finally
+        {
+            IsUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemovePhoto()
+    {
+        if (!string.IsNullOrEmpty(CurrentPhotoUrl))
+        {
+            await FileUploadService.DeletePhotoAsync(CurrentPhotoUrl);
+            CurrentPhotoUrl = null;
+            await OnPhotoChanged.InvokeAsync(null);
+            SuccessMessage = "Photo removed successfully!";
+            ErrorMessage = null;
+            StateHasChanged();
+        }
+    }
+
+    private string GetPhotoUrl(string? photoUrl)
+    {
+        if (string.IsNullOrEmpty(photoUrl)) return string.Empty;
+        if (photoUrl.StartsWith("http")) return photoUrl;
+        
+        var backendUrl = Configuration["BackendUrl"] ?? "https://localhost:7185";
+        return $"{backendUrl.TrimEnd('/')}{photoUrl}";
+    }
+}

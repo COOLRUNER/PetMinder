@@ -1,0 +1,164 @@
+@page "/admin/reported-users"
+@layout AdminLayout
+@using Microsoft.AspNetCore.Authorization
+@using PetMinder.Shared.DTO
+@using PetMinder.Client.Services
+@inject AdminService AdminService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "Admin")]
+
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-slate-900">Safety Center</h1>
+    <p class="mt-1 text-slate-500">Investigate and take action on reported users.</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-12 text-slate-400">Loading reports...</div>
+}
+else if (!reportedUsers.Any())
+{
+    <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <Heroicon Name="@HeroiconName.ShieldCheck" Type="@HeroiconType.Solid" class="h-8 w-8" />
+        </div>
+        <h3 class="text-lg font-bold text-slate-900">All Clear!</h3>
+        <p class="text-slate-500">There are no active user reports right now.</p>
+    </div>
+}
+else
+{
+    <div class="space-y-6">
+        @foreach (var suspect in reportedUsers)
+        {
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                <div class="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-lg font-bold text-rose-600">
+                            @suspect.Reports.Count
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">@suspect.FullName</h3>
+                            <div class="flex items-center gap-2 text-sm text-slate-500">
+                                <span>@suspect.Email</span>
+                                @if(suspect.IsBanned)
+                                {
+                                    <span class="rounded bg-rose-900 px-2 py-0.5 text-[10px] font-bold uppercase text-white">BANNED</span>
+                                }
+                                else if(suspect.IsFlagged)
+                                {
+                                    <span class="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-700">Flagged</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <a href="admin/users/@suspect.UserId" class="flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                            View Profile & Chats
+                        </a>
+                        @if (!suspect.IsBanned)
+                        {
+                            <button @onclick="() => BanUser(suspect)" class="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800">
+                                <Heroicon Name="@HeroiconName.NoSymbol" Type="@HeroiconType.Mini" class="h-4 w-4" />
+                                Ban User
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="bg-white p-6">
+                    <h4 class="mb-4 text-xs font-bold uppercase tracking-wide text-slate-400">Accusations</h4>
+                    <div class="space-y-3">
+                        @foreach (var report in suspect.Reports.ToList()) 
+                        {
+                            <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 flex justify-between items-start group">
+                                <div>
+                                    <div class="mb-1 flex gap-2 items-center">
+                                        <span class="font-bold text-slate-700 text-sm">Reported by @report.ReporterName</span>
+                                        <span class="text-xs text-slate-400">• @report.ReportedAt.ToShortDateString()</span>
+                                    </div>
+                                    <p class="text-sm text-slate-600 italic">"@report.Reason"</p>
+                                </div>
+
+                                <button @onclick="() => DismissSingle(suspect, report)"
+                                        class="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors whitespace-nowrap ml-4">
+                                    Dismiss
+                                </button>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-6 flex justify-end border-t border-slate-100 pt-4">
+                        <button @onclick="() => DismissAll(suspect)" class="text-xs font-bold text-slate-400 hover:text-emerald-600">
+                            Dismiss all reports
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<AdminReportedUserDTO> reportedUsers = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        reportedUsers = await AdminService.GetReportedUsersAsync();
+        isLoading = false;
+    }
+
+    private async Task BanUser(AdminReportedUserDTO user)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", 
+            $"<!> ARE YOU SURE?\n\nThis will BAN {user.FullName} permanently and send them an email notification.\n\nThey will effectively be blocked from the platform.");
+        
+        if (!confirm) return;
+
+        var success = await AdminService.BanUserAsync(user.UserId);
+        if (success) 
+        {
+            user.IsBanned = true;
+            await JS.InvokeVoidAsync("alert", "User has been banned.");
+        }
+    }
+
+    private async Task DismissAll(AdminReportedUserDTO user)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Dismiss all {user.ReportCount} reports for {user.FullName}?");
+        if (!confirm) return;
+
+        var success = await AdminService.DismissUserReportsAsync(user.UserId);
+        if (success) 
+        {
+            reportedUsers.Remove(user);
+        }
+    }
+
+    private async Task DismissSingle(AdminReportedUserDTO user, AdminReportDetailDTO report)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", "Dismiss this specific allegation?");
+        if (!confirm) return;
+
+        var success = await AdminService.DismissSingleUserReportAsync(report.ReportId);
+        if (success)
+        {
+            user.Reports.Remove(report);
+            user.ReportCount--;
+
+            if (user.Reports.Count == 0)
+            {
+                reportedUsers.Remove(user);
+            }
+        }
+    }
+}

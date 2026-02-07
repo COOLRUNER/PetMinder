@@ -1,0 +1,119 @@
+﻿@page "/transactions"
+@using PetMinder.Shared.DTO
+@inject PetMinder.Client.Services.AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<div class="min-h-screen bg-slate-50 text-slate-900 py-10 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                <Heroicon Name="@HeroiconName.Banknotes" Type="@HeroiconType.Solid" class="h-8 w-8 text-emerald-500" />
+                Transaction History
+            </h1>
+            <button
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+            @onclick="GoBack">
+                <Heroicon Name="@HeroiconName.ArrowLeft" Type="@HeroiconType.Outline" class="h-4 w-4" />
+                Back to Profile
+            </button>
+            <button
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            @onclick="GoToPointsLots">
+                <Heroicon Name="@HeroiconName.Ticket" Type="@HeroiconType.Outline" class="h-4 w-4" />
+                View Points Lots
+            </button>
+        </div>
+
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center py-20 text-slate-500">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm">Loading transactions...</p>
+            </div>
+        }
+        else if (transactions == null || transactions.Count == 0)
+        {
+            <div
+                class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-20 text-center text-sm text-slate-500">
+                <div class="mb-4 text-slate-300">
+                    <Heroicon Name="@HeroiconName.Banknotes" Type="@HeroiconType.Outline" class="h-12 w-12" />
+                </div>
+                No transactions found.
+            </div>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 font-semibold">Date</th>
+                                <th scope="col" class="px-6 py-4 font-semibold">Type</th>
+                                <th scope="col" class="px-6 py-4 font-semibold">Points</th>
+                                <th scope="col" class="px-6 py-4 font-semibold">Direction</th>
+                                <th scope="col" class="px-6 py-4 font-semibold">Reason</th>
+                                <th scope="col" class="px-6 py-4 font-semibold">Expires</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var tx in transactions)
+                            {
+                                <tr class="bg-white hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">@tx.OccurredAt.ToLocalTime().ToString("g")</td>
+                                    <td class="px-6 py-4">
+                                        <span
+                                            class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                                            @tx.TransactionType
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 font-medium text-slate-900">@tx.Points</td>
+                                    <td class="px-6 py-4 text-xs text-slate-500">@GetDirection(tx)</td>
+                                    <td class="px-6 py-4">@tx.Reason</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-400">
+                                        @tx.ExpiresAt?.ToLocalTime().ToString("g")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool isLoading = true;
+    private List<TransactionDTO>? transactions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        transactions = await AuthService.GetMyTransactionsAsync() ?? new List<TransactionDTO>();
+        isLoading = false;
+    }
+
+    private string GetDirection(TransactionDTO tx)
+    {
+        var sender = string.IsNullOrWhiteSpace(tx.SenderName) ? $"User {tx.SenderId}" : tx.SenderName;
+        var receiver = string.IsNullOrWhiteSpace(tx.ReceiverName) ? $"User {tx.ReceiverId}" : tx.ReceiverName;
+
+        if (tx.SenderId == tx.ReceiverId)
+        {
+            return $"Self ({sender})";
+        }
+
+        return $"From {sender} to {receiver}";
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/profile");
+    }
+
+    private void GoToPointsLots()
+    {
+        NavigationManager.NavigateTo("/points-lots");
+    }
+}

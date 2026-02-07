@@ -1,0 +1,213 @@
+@using PetMinder.Shared.DTO
+@using PetMinder.Models
+@inject PetMinder.Client.Services.NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<div class="fixed inset-0 z-50 @(_isVisible ? "" : "pointer-events-none")">
+    <div class="absolute inset-0 bg-slate-900/50 transition-opacity duration-300 @(_isVisible ? "opacity-100" : "opacity-0")"
+    @onclick="Close"></div>
+
+    <div
+        class="absolute right-0 top-0 h-full w-full max-w-md transform transition-transform duration-300 ease-out @(_isVisible ? "translate-x-0" : "translate-x-full")">
+        <div class="flex h-full flex-col bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        <Heroicon Name="@HeroiconName.Bell" Type="@HeroiconType.Solid" class="h-5 w-5"/>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Notifications</h2>
+                        <p class="text-xs text-slate-500">@_notifications.Count notification(s)</p>
+                    </div>
+                </div>
+                <button @onclick="Close"
+                        class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                    <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Outline" class="h-5 w-5"/>
+                </button>
+            </div>
+
+            @if (_notifications.Any())
+            {
+                <div class="border-b border-slate-100 px-6 py-3">
+                    <button @onclick="ClearAll"
+                            class="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100">
+                        <Heroicon Name="@HeroiconName.Trash" Type="@HeroiconType.Outline" class="h-4 w-4"/>
+                        Clear all
+                    </button>
+                </div>
+            }
+
+            <div class="flex-1 overflow-y-auto">
+                @if (_isLoading)
+                {
+                    <div class="flex items-center justify-center py-12">
+                        <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent">
+                        </div>
+                    </div>
+                }
+                else if (!_notifications.Any())
+                {
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                            <Heroicon Name="@HeroiconName.BellSlash" Type="@HeroiconType.Outline"
+                                      class="h-8 w-8 text-slate-400"/>
+                        </div>
+                        <p class="text-sm font-medium text-slate-600">No notifications</p>
+                        <p class="text-xs text-slate-400">You're all caught up!</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="divide-y divide-slate-100">
+                        @foreach (var notification in _notifications)
+                        {
+                            <div class="group relative flex gap-4 px-6 py-4 transition hover:bg-slate-50">
+                                <div
+                                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full @GetIconBackground(notification.NotificationType)">
+                                    <Heroicon Name="@GetIconName(notification.NotificationType)" Type="@HeroiconType.Solid"
+                                              class="h-5 w-5"/>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-slate-900">
+                                        @GetNotificationTitle(notification.NotificationType)</p>
+                                    <p class="mt-0.5 text-sm text-slate-600 line-clamp-2">@notification.Content</p>
+                                    <p class="mt-1 text-xs text-slate-400">@GetTimeAgo(notification.CreatedAt)</p>
+                                </div>
+                                <button @onclick="() => DeleteNotification(notification.NotificationId)"
+                                        @onclick:stopPropagation="true"
+                                        class="pointer-events-auto absolute right-4 top-4 z-20 rounded p-1 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:bg-slate-200 hover:text-slate-600">
+                                    <Heroicon Name="@HeroiconName.XMark" Type="@HeroiconType.Outline" class="h-4 w-4"/>
+                                </button>
+                                @if (notification.BookingId.HasValue)
+                                {
+                                    <button @onclick="() => NavigateToBooking(notification)"
+                                            class="absolute inset-0 z-0 cursor-pointer"></button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool _isVisible;
+    private bool _isLoading = true;
+    private List<NotificationDTO> _notifications = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible && !_isVisible)
+        {
+            _isVisible = true;
+            await LoadNotifications();
+        }
+        else if (!IsVisible && _isVisible)
+        {
+            _isVisible = false;
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        _isLoading = true;
+        try
+        {
+            _notifications = await NotificationService.GetNotificationsAsync();
+        }
+        catch
+        {
+            _notifications = new List<NotificationDTO>();
+        }
+        _isLoading = false;
+    }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task DeleteNotification(long notificationId)
+    {
+        await NotificationService.DeleteNotificationAsync(notificationId);
+        _notifications.RemoveAll(n => n.NotificationId == notificationId);
+    }
+
+    private async Task ClearAll()
+    {
+        await NotificationService.DeleteAllNotificationsAsync();
+        _notifications.Clear();
+    }
+
+    private void NavigateToBooking(NotificationDTO notification)
+    {
+        if (notification.BookingId.HasValue)
+        {
+            // Navigate based on notification type
+            if (notification.NotificationType == NotificationType.BookingRequest)
+            {
+                NavigationManager.NavigateTo("/sitter/received-requests");
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/owner/sent-requests");
+            }
+            Close();
+        }
+    }
+
+    private string GetIconName(NotificationType type) => type switch
+    {
+        NotificationType.BookingRequest => HeroiconName.InboxArrowDown,
+        NotificationType.BookingAccepted => HeroiconName.CheckCircle,
+        NotificationType.BookingRejected => HeroiconName.XCircle,
+        NotificationType.BookingCancelled => HeroiconName.ExclamationTriangle,
+        NotificationType.ChangeRequested => HeroiconName.ArrowPath,
+        NotificationType.ChangeAccepted => HeroiconName.CheckCircle,
+        NotificationType.ChangeRejected => HeroiconName.XCircle,
+        NotificationType.SystemAlert => HeroiconName.InformationCircle,
+        _ => HeroiconName.Bell
+    };
+
+    private string GetIconBackground(NotificationType type) => type switch
+    {
+        NotificationType.BookingRequest => "bg-sky-100 text-sky-600",
+        NotificationType.BookingAccepted => "bg-emerald-100 text-emerald-600",
+        NotificationType.BookingRejected => "bg-rose-100 text-rose-600",
+        NotificationType.BookingCancelled => "bg-amber-100 text-amber-600",
+        NotificationType.ChangeRequested => "bg-violet-100 text-violet-600",
+        NotificationType.ChangeAccepted => "bg-emerald-100 text-emerald-600",
+        NotificationType.ChangeRejected => "bg-rose-100 text-rose-600",
+        NotificationType.SystemAlert => "bg-slate-100 text-slate-600",
+        _ => "bg-slate-100 text-slate-600"
+    };
+
+    private string GetNotificationTitle(NotificationType type) => type switch
+    {
+        NotificationType.BookingRequest => "New Booking Request",
+        NotificationType.BookingAccepted => "Booking Accepted",
+        NotificationType.BookingRejected => "Booking Rejected",
+        NotificationType.BookingCancelled => "Booking Cancelled",
+        NotificationType.ChangeRequested => "Change Requested",
+        NotificationType.ChangeAccepted => "Change Accepted",
+        NotificationType.ChangeRejected => "Change Rejected",
+        NotificationType.SystemAlert => "System Alert",
+        _ => "Notification"
+    };
+
+    private string GetTimeAgo(DateTime createdAt)
+    {
+        var diff = DateTime.UtcNow - createdAt;
+        if (diff.TotalMinutes < 1) return "Just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return createdAt.ToShortDateString();
+    }
+}

@@ -1,0 +1,60 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+
+<div class="min-h-screen bg-slate-100 flex font-sans">
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-10 shadow-xl">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-2">
+            <span class="text-lg font-bold text-white tracking-widest">ADMIN</span>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2">
+            <NavLink href="admin/users" Match="NavLinkMatch.Prefix" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-800 hover:text-white" ActiveClass="bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-semibold">
+                <Heroicon Name="@HeroiconName.Users" Type="@HeroiconType.Outline" class="w-5 h-5" />
+                <span>Users</span>
+            </NavLink>
+            
+            <NavLink href="admin/points" Match="NavLinkMatch.Prefix" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-800 hover:text-white" ActiveClass="bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-semibold">
+                <Heroicon Name="@HeroiconName.CurrencyDollar" Type="@HeroiconType.Outline" class="w-5 h-5" />
+                <span>Points & Disputes</span>
+            </NavLink>
+
+            <NavLink href="admin/reviews" Match="NavLinkMatch.Prefix" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-800 hover:text-white" ActiveClass="bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-semibold">
+                <Heroicon Name="@HeroiconName.Flag" Type="@HeroiconType.Outline" class="w-5 h-5" />
+                <span>Reported Reviews</span>
+            </NavLink>
+
+            <NavLink href="admin/reported-users" Match="NavLinkMatch.Prefix" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-800 hover:text-white" ActiveClass="bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-semibold">
+                <Heroicon Name="@HeroiconName.Flag" Type="@HeroiconType.Outline" class="w-5 h-5" />
+                <span>Reported Users</span>
+            </NavLink>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800">
+            <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+                <Heroicon Name="@HeroiconName.ArrowLeftOnRectangle" Type="@HeroiconType.Outline" class="w-5 h-5" />
+                <span>Back to App</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8 overflow-y-auto">
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                @Body
+            </Authorized>
+            <NotAuthorized>
+                <div class="flex h-[80vh] flex-col items-center justify-center text-center">
+                    <div class="mb-4 rounded-full bg-rose-100 p-6 text-rose-600">
+                        <Heroicon Name="@HeroiconName.LockClosed" Type="@HeroiconType.Solid" class="h-12 w-12" />
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-900">Access Restricted</h2>
+                    <p class="mt-2 text-slate-500">You do not have administrative privileges to view this area.</p>
+                    <a href="/" class="mt-6 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800">
+                        Return to Safety
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </main>
+</div>

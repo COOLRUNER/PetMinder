@@ -1,0 +1,38 @@
+services:
+  database:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: petminder
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: PetMinder.Api/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
+      - Frontend__BaseUrl=${FRONTEND_BASE_URL}
+    ports:
+      - "5000:8080"
+    depends_on:
+      - database
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.Client
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,129 @@
+@using PetMinder.Shared.DTO
+
+@if (IsVisible)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @onclick="Close"></div>
+
+        <div class="relative w-full max-w-lg transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
+            <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-900">Review @TargetName</h3>
+                <button @onclick="Close" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6">
+                        <path fill-rule="evenodd"
+                            d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            <EditForm Model="ReviewModel" OnValidSubmit="HandleSubmit" class="p-6">
+                <DataAnnotationsValidator />
+
+                <div class="space-y-6">
+                    @if (!IsSitterReview)
+                    {
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Sitter
+                                Rating</label>
+                            <div class="flex justify-center rounded-xl border border-slate-200 bg-slate-50 py-3">
+                                <StarRating Value="@(ReviewModel.SitterRating ?? 0)"
+                                    ValueChanged="@((int val) => ReviewModel.SitterRating = val)" IsReadOnly="false"
+                                    SizeClass="h-8 w-8" MaxStars="5" />
+                            </div>
+                            <ValidationMessage For="@(() => ReviewModel.SitterRating)"
+                                class="text-xs text-rose-500 mt-1 text-center" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2 text-center">Owner
+                                    Rating</label>
+                                <div class="flex justify-center rounded-xl border border-slate-200 bg-slate-50 py-3">
+                                    <StarRating Value="@(ReviewModel.OwnerRating ?? 0)"
+                                        ValueChanged="@((int val) => ReviewModel.OwnerRating = val)" IsReadOnly="false"
+                                        SizeClass="h-6 w-6" MaxStars="5" />
+                                </div>
+                                <ValidationMessage For="@(() => ReviewModel.OwnerRating)"
+                                    class="text-xs text-rose-500 mt-1 text-center" />
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2 text-center">Pet
+                                    Rating</label>
+                                <div class="flex justify-center rounded-xl border border-slate-200 bg-slate-50 py-3">
+                                    <StarRating Value="@(ReviewModel.PetRating ?? 0)"
+                                        ValueChanged="@((int val) => ReviewModel.PetRating = val)" IsReadOnly="false"
+                                        SizeClass="h-6 w-6" MaxStars="5" />
+                                </div>
+                                <ValidationMessage For="@(() => ReviewModel.PetRating)"
+                                    class="text-xs text-rose-500 mt-1 text-center" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">House Rating
+                                (Optional)</label>
+                            <div class="flex justify-center rounded-xl border border-slate-200 bg-slate-50 py-3">
+                                <StarRating Value="@(ReviewModel.HouseRating ?? 0)"
+                                    ValueChanged="@((int val) => ReviewModel.HouseRating = val)" IsReadOnly="false"
+                                    SizeClass="h-8 w-8" MaxStars="5" />
+                            </div>
+                            <ValidationMessage For="@(() => ReviewModel.HouseRating)"
+                                class="text-xs text-rose-500 mt-1 text-center" />
+                        </div>
+                    }
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Comment</label>
+                        <InputTextArea @bind-Value="ReviewModel.Comment"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            rows="4" placeholder="Share your experience..." />
+                        <ValidationMessage For="@(() => ReviewModel.Comment)" class="text-xs text-rose-500 mt-1" />
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end gap-3">
+                    <button type="button" @onclick="Close"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        Cancel
+                    </button>
+                    <button type="submit" disabled="@IsSubmitting"
+                        class="rounded-xl bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 disabled:opacity-50">
+                        @if (IsSubmitting)
+                        {
+                            <span>Submitting...</span>
+                        }
+                        else
+                        {
+                            <span>Submit Review</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string TargetName { get; set; } = "User";
+    [Parameter] public bool IsSitterReview { get; set; }
+    [Parameter] public CreateReviewDTO ReviewModel { get; set; } = new();
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSubmit { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        await OnSubmit.InvokeAsync();
+    }
+}

@@ -1,0 +1,172 @@
+@page "/login"
+@using PetMinder.Shared.DTO
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Login • PetMinder</PageTitle>
+
+<div class="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
+    <div class="grid w-full max-w-5xl gap-6 lg:gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+
+        <section class="relative hidden overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-sky-50 to-emerald-100 p-8 shadow-md shadow-emerald-100/50 md:flex md:flex-col justify-between">
+            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.1),_transparent_60%),_radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.1),_transparent_55%)]"></div>
+
+            <div class="relative flex items-center gap-2 text-sm font-bold tracking-wide text-emerald-900 uppercase">
+                <span>PetMinder</span>
+            </div>
+
+            <div class="relative mt-8 space-y-4">
+                <h1 class="text-balance text-3xl font-bold tracking-tight text-slate-900 lg:text-4xl">
+                    Your pet's favorite sitter
+                    <span class="block text-emerald-700">is just a login away.</span>
+                </h1>
+                <p class="max-w-md text-sm text-slate-600">
+                    Pick up conversations, manage bookings, and see real-time updates from your sitter — all in one place.
+                </p>
+            </div>
+
+            <div class="relative mt-10 space-y-3 text-xs text-slate-700">
+
+                <div class="flex items-center gap-3 rounded-2xl bg-white/80 px-3 py-3 ring-1 ring-emerald-100">
+                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[0.7rem] font-bold text-white shadow-sm">
+                        1
+                    </span>
+                    <div>
+                        <div class="font-bold text-slate-900">Book trusted local sitters</div>
+                        <div class="text-[0.7rem] opacity-90">Verified profiles, reviews, and repeat favorites at a glance.</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 rounded-2xl bg-white/70 px-3 py-3 ring-1 ring-emerald-100/70">
+                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-[0.7rem] font-bold text-white shadow-sm">
+                        2
+                    </span>
+                    <div>
+                        <div class="font-bold text-slate-900">Stay in the loop</div>
+                        <div class="text-[0.7rem] opacity-90">Get photo updates and chat messages without leaving the app.</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 rounded-2xl bg-white/70 px-3 py-3 ring-1 ring-emerald-100/70">
+                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-300 text-[0.7rem] font-bold text-emerald-900 shadow-sm">
+                        3
+                    </span>
+                    <div>
+                        <div class="font-bold text-slate-900">Secure, cashless payments</div>
+                        <div class="text-[0.7rem] opacity-90">Automatic payouts and clear pricing. No awkward handoffs.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="flex items-center justify-center">
+            <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold tracking-tight text-slate-900">Log in to your account</h2>
+                    <p class="mt-1 text-sm text-slate-500">
+                        New here?
+                        <a href="register" class="font-semibold text-emerald-600 hover:text-emerald-500 hover:underline">Create an account</a>.
+                    </p>
+                </div>
+
+                <EditForm Model="loginForm" OnValidSubmit="HandleLoginAsync" class="space-y-5">
+                    <DataAnnotationsValidator />
+
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Email Address</label>
+                        <InputText
+                            class="input-text w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
+                            @bind-Value="loginForm.Email" />
+                        <ValidationMessage For="() => loginForm.Email" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Password</label>
+                        </div>
+                        <InputText
+                            type="password"
+                            class="input-text w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
+                            @bind-Value="loginForm.Password" />
+                        <ValidationMessage For="() => loginForm.Password" />
+                    </div>
+
+                    <button type="submit" disabled="@isBusy"
+                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-600 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                        @if (isBusy)
+                        {
+                            <svg class="h-4 w-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Signing in...</span>
+                        }
+                        else
+                        {
+                            <span>Log in</span>
+                        }
+                    </button>
+                </EditForm>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="mt-6 flex gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-rose-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 shrink-0 text-rose-500">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="text-xs font-medium">@errorMessage</div>
+                    </div>
+                }
+
+                <div class="mt-8 border-t border-slate-100 pt-6 text-center">
+                    <p class="text-[0.7rem] text-slate-400">
+                        Protected by PetMinder Security. By continuing, you agree to our <a href="#" class="underline hover:text-slate-600">Terms</a>.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+@code {
+    private LoginDTO loginForm = new();
+    private string? errorMessage;
+    private bool isBusy = false;
+
+    private async Task HandleLoginAsync()
+    {
+        if (isBusy) return;
+
+        isBusy = true;
+        errorMessage = null;
+
+        try
+        {
+            var loginResult = await AuthService.LoginAsync(loginForm);
+
+            if (loginResult != null && !string.IsNullOrEmpty(loginResult.Token))
+            {
+                NavigationManager.NavigateTo("/profile");
+            }
+            else
+            {
+                errorMessage = "Invalid email or password. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("suspended"))
+            {
+                errorMessage = ex.Message;
+            }
+            else
+            {
+                errorMessage = "Something went wrong. Please check your connection.";
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}
